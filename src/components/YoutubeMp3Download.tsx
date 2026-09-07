@@ -146,7 +146,7 @@ export function YoutubeMp3Download({ folder, progress, onDownloaded }: Props) {
       <p role="status">{message}</p>
       <div className="pb-download-jobs">
         {jobs.map((job) => (
-          <div key={job.id}>
+          <div key={job.id} data-status={job.status}>
             <span>{job.url}</span>
             <small>
               {job.status === "downloading"

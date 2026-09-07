@@ -314,6 +314,10 @@ export const TrackRow = React.memo(
       <div className="v-track__actions">
         <button
           className="v-track__btn"
+          title={isLiked ? "Unlike song" : "Like song"}
+          aria-label={isLiked ? "Unlike song" : "Like song"}
+          aria-pressed={isLiked}
+          data-favorite={isLiked}
           onClick={(e) => {
             e.stopPropagation();
             onLike();
@@ -323,8 +327,8 @@ export const TrackRow = React.memo(
             size={13}
             style={
               isLiked
-                ? { color: "#e05555", fill: "#e05555" }
-                : { color: "var(--v-fg3)" }
+                ? { color: "var(--pb-gold, #e2b56d)", fill: "currentColor" }
+                : { color: "currentColor" }
             }
           />
         </button>
@@ -401,6 +405,9 @@ export const TrackRow = React.memo(
         {showRemove && onRemove ? (
           <button
             className="v-track__btn"
+            title="Remove from playlist"
+            aria-label="Remove from playlist"
+            data-danger="true"
             style={{ color: "var(--v-fg3)" }}
             onClick={(e) => {
               e.stopPropagation();
@@ -414,6 +421,8 @@ export const TrackRow = React.memo(
         ) : (
           <button
             className="v-track__btn"
+            title="More song actions"
+            aria-label="More song actions"
             onClick={(e) => {
               e.stopPropagation();
               onCtx(e);

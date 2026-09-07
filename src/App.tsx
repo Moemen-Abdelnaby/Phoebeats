@@ -10,6 +10,9 @@ import {
   Music,
   X,
   Trash2,
+  ListMusic,
+  FolderOpen,
+  FileInput,
 } from "lucide-react";
 
 import {
@@ -1362,90 +1365,92 @@ export function App() {
     [downloadPath, showToast],
   );
 
-  const handleImportPlaylistM3u = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".m3u,.m3u8";
-    input.style.display = "none";
-    document.body.appendChild(input);
-    input.onchange = async (e) => {
-      document.body.removeChild(input);
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const lines = text
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean);
-        if (!lines.length) {
-          showToast("Empty M3U file");
-          return;
-        }
+  const handleImportPlaylistM3u = useCallback(async () => {
+    try {
+      const path = await open({
+        title: "Import M3U playlist",
+        multiple: false,
+        filters: [{ name: "M3U playlists", extensions: ["m3u", "m3u8"] }],
+      });
+      if (!path || Array.isArray(path)) return;
+      const file = { name: path.split(/[\\/]/).pop() || "Imported playlist.m3u" };
+      const lines = await invoke<string[]>("import_playlist_m3u", { path });
+      if (!lines.length) {
+        showToast("Empty M3U file");
+        return;
+      }
 
-        const importedTracks: Track[] = [];
-        let pendingTitle = "";
-        let pendingArtist = "";
+      const importedTracks: Track[] = [];
+      let pendingTitle = "";
+      let pendingArtist = "";
+      let pendingDuration = "0:00";
 
-        for (const line of lines) {
-          if (line.startsWith("#EXTINF:")) {
-            const meta = line.slice(line.indexOf(",") + 1);
-            const dashIdx = meta.indexOf(" - ");
-            if (dashIdx !== -1) {
-              pendingArtist = meta.slice(0, dashIdx).trim();
-              pendingTitle = meta.slice(dashIdx + 3).trim();
-            } else {
-              pendingTitle = meta.trim();
-              pendingArtist = "";
-            }
-          } else if (!line.startsWith("#")) {
-            const url = line;
-            const ytId =
-              url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1] || "";
-            if (!pendingTitle) {
-              pendingTitle = ytId
-                ? "YouTube Track"
-                : url
-                    .split("/")
-                    .pop()
-                    ?.replace(/\.[^.]+$/, "") || "Track";
-            }
-            importedTracks.push({
-              id: Date.now() + importedTracks.length,
-              title: pendingTitle,
-              artist: pendingArtist,
-              duration: "0:00",
-              url,
-              cover: ytId ? `https://i.ytimg.com/vi/${ytId}/mqdefault.jpg` : "",
-            });
-            pendingTitle = "";
+      for (const line of lines) {
+        if (line.startsWith("#EXTINF:")) {
+          const seconds = Number(line.slice(8, line.indexOf(",")));
+          pendingDuration = Number.isFinite(seconds) && seconds > 0
+            ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`
+            : "0:00";
+          const meta = line.slice(line.indexOf(",") + 1);
+          const dashIdx = meta.indexOf(" - ");
+          if (dashIdx !== -1) {
+            pendingArtist = meta.slice(0, dashIdx).trim();
+            pendingTitle = meta.slice(dashIdx + 3).trim();
+          } else {
+            pendingTitle = meta.trim();
             pendingArtist = "";
           }
+        } else if (!line.startsWith("#")) {
+          const url = line;
+          const ytId =
+            url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1] || "";
+          if (!pendingTitle) {
+            pendingTitle = ytId
+              ? "YouTube Track"
+              : url
+                  .split(/[\\/]/)
+                  .pop()
+                  ?.replace(/\.[^.]+$/, "") || "Track";
+          }
+          importedTracks.push({
+            id: Date.now() + importedTracks.length,
+            title: pendingTitle,
+            artist: pendingArtist,
+            duration: pendingDuration,
+            url,
+            cover: ytId ? `https://i.ytimg.com/vi/${ytId}/mqdefault.jpg` : "",
+          });
+          pendingTitle = "";
+          pendingArtist = "";
+          pendingDuration = "0:00";
         }
-
-        if (!importedTracks.length) {
-          showToast("No tracks found in M3U file");
-          return;
-        }
-        const name = file.name.replace(/\.m3u8?$/i, "");
-        setPlaylists((prev) => [
-          ...prev,
-          {
-            id: `pl_${Date.now()}`,
-            name,
-            description: `Imported from ${file.name}`,
-            tracks: importedTracks,
-          },
-        ]);
-        showToast(
-          `Imported "${name}" — ${importedTracks.length} track${importedTracks.length !== 1 ? "s" : ""}`,
-        );
-      } catch (err) {
-        showToast(`Import failed: ${err}`);
       }
-    };
-    input.click();
-  }, [showToast, setPlaylists]);
+
+      if (!importedTracks.length) {
+        showToast("No tracks found in M3U file");
+        return;
+      }
+      const name = file.name.replace(/\.m3u8?$/i, "");
+      const id = `pl_${Date.now()}`;
+      setPlaylists((prev) => [
+        ...prev,
+        {
+          id,
+          name,
+          description: `Imported from ${file.name}`,
+          tracks: importedTracks,
+        },
+      ]);
+      setOpenPlaylistId(id);
+      setActiveNav("playlists");
+      setPanelOpen(true);
+      showToast(
+        `Imported "${name}" — ${importedTracks.length} track${importedTracks.length !== 1 ? "s" : ""}`,
+      );
+    } catch (err) {
+      showToast(`Import failed: ${err}`);
+    }
+  }, [showToast, setPlaylists, setOpenPlaylistId, setActiveNav]);
 
   const handleBackup = useCallback(async () => {
     try {
@@ -2043,7 +2048,7 @@ export function App() {
                 setOpenPlaylistId(null);
               }}
             >
-              All playlists
+              <ListMusic size={15} aria-hidden="true" /> All playlists
             </button>
             <select
               aria-label="Choose playlist"
@@ -2061,7 +2066,10 @@ export function App() {
               ))}
             </select>
             <button onClick={() => setActiveNav("downloads")}>
-              Songs folder
+              <FolderOpen size={15} aria-hidden="true" /> Songs folder
+            </button>
+            <button onClick={handleImportPlaylistM3u}>
+              <FileInput size={15} aria-hidden="true" /> Import M3U
             </button>
             <button
               aria-label="Close panel"

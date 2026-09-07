@@ -4,6 +4,7 @@ import App from "./App";
 import "./App.css";
 import "./phoebe-theme.css";
 import "./compact-layout.css";
+import "./ui-polish.css";
 
 interface Props {
   children: ReactNode;

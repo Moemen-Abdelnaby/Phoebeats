@@ -371,6 +371,71 @@
   margin-left: 8px;
 }
 
+/* Compact playlist and song actions: depth without extra blur or idle motion. */
+[data-theme="phoebe"] :is(
+  .pb-panel-toolbar button,
+  .v-new-playlist-btn,
+  .v-library-import-btn,
+  .v-track__btn
+) {
+  border: 1px solid var(--pb-border);
+  border-radius: 10px;
+  background: linear-gradient(155deg, rgba(114, 213, 244, 0.09), rgba(8, 18, 30, 0.55));
+  color: var(--pb-text-secondary);
+  box-shadow: inset 0 1px 0 rgba(167, 234, 255, 0.06);
+  transition: background 160ms ease, border-color 160ms ease,
+    color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+[data-theme="phoebe"] :is(.pb-panel-toolbar button, .v-new-playlist-btn, .v-library-import-btn) {
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+[data-theme="phoebe"] :is(
+  .pb-panel-toolbar button,
+  .v-new-playlist-btn,
+  .v-library-import-btn,
+  .v-track__btn
+):hover:not(:disabled) {
+  border-color: var(--pb-border-hover);
+  color: var(--pb-cyan-bright);
+  background: linear-gradient(155deg, rgba(114, 213, 244, 0.19), rgba(12, 23, 36, 0.7));
+  box-shadow: inset 0 1px 0 rgba(167, 234, 255, 0.12), 0 3px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+[data-theme="phoebe"] :is(
+  .pb-panel-toolbar button,
+  .v-new-playlist-btn,
+  .v-library-import-btn,
+  .v-track__btn
+):active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+[data-theme="phoebe"] .v-new-playlist-btn {
+  background: linear-gradient(135deg, var(--pb-cyan-bright), var(--pb-cyan-muted));
+  color: var(--pb-bg-deep);
+  border-color: rgba(167, 234, 255, 0.4);
+}
+[data-theme="phoebe"] .v-track__btn {
+  min-width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 9px;
+}
+[data-theme="phoebe"] .v-track:focus-within .v-track__actions {
+  opacity: 1;
+}
+[data-theme="phoebe"] .v-track__btn[data-favorite="true"] {
+  background: rgba(226, 181, 109, 0.1);
+  border-color: rgba(226, 181, 109, 0.28);
+  color: var(--pb-gold);
+}
+[data-theme="phoebe"] .v-track__btn[data-danger="true"]:hover {
+  background: rgba(190, 90, 90, 0.12);
+  border-color: rgba(220, 120, 120, 0.32);
+  color: #e7a3a3 !important;
+}
+
 @supports not (
   (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
 ) {

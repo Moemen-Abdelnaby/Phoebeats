@@ -337,7 +337,7 @@ export const DownloadsPanel = React.memo(function DownloadsPanel({
 
   return (
     <div
-      className="flex-1 overflow-y-auto custom-scrollbar"
+      className="pb-local-library flex-1 overflow-y-auto custom-scrollbar"
       style={{ padding: "24px 30px 140px 30px", zIndex: 10 }}
     >
       {/* Header */}
@@ -1116,6 +1116,7 @@ export const DownloadsPanel = React.memo(function DownloadsPanel({
                       <button
                         className="v-track__btn"
                         title="Delete"
+                        data-danger="true"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteLocalTrack(track);

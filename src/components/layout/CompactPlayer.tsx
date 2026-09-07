@@ -176,7 +176,7 @@ export function CompactPlayer(props: Props) {
               onError={() => setArtwork({ url: trackUrl, cover: "" })}
             />
             <div>
-              <strong>{p.currentTrack?.title || "Choose a song"}</strong>
+              <strong title={p.currentTrack?.title}>{p.currentTrack?.title || "Choose a song"}</strong>
               <span>
                 {p.isLoadingTrack
                   ? "Loading…"
@@ -191,6 +191,8 @@ export function CompactPlayer(props: Props) {
                   : "Like"
               }
               disabled={!p.currentTrack}
+              data-favorite={!!p.currentTrack && p.isTrackLiked(p.currentTrack.url)}
+              aria-pressed={!!p.currentTrack && p.isTrackLiked(p.currentTrack.url)}
               onClick={() =>
                 p.currentTrack && p.toggleLikeTrack(p.currentTrack)
               }

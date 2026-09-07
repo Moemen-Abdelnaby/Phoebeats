@@ -1,0 +1,88 @@
+/* Surface-only polish. No extra backdrop layers or idle animations.
+   User Custom CSS still loads after the bundled styles. */
+.pb-panel-toolbar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+.pb-panel-toolbar button, .pb-settings-close button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+.pb-panel-toolbar button svg { flex-shrink: 0; }
+.pb-panel-toolbar select { flex: 1 1 140px; min-height: 34px; max-width: 100%; font-size: 12px; }
+.pb-panel-toolbar button[aria-label="Close panel"] { margin-left: auto; width: 34px; }
+.pb-settings-close { gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--pb-border); }
+.pb-settings-close select { min-width: 140px; padding: 7px 10px; }
+
+/* Preserve the player's footprint and icon-only collapse. */
+.pb-mini-player:not([data-collapsed="true"]) {
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(167, 234, 255, 0.06), 0 12px 32px rgba(0, 5, 14, 0.22);
+}
+.pb-mini-header > span { font-weight: 650; letter-spacing: 0.12em; color: var(--pb-text-secondary); user-select: none; }
+.pb-mini-track > img { border: 1px solid var(--pb-border); box-shadow: 0 3px 10px rgba(0, 5, 14, 0.2); }
+.pb-mini-track strong { font-size: 14px; line-height: 1.35; }
+.pb-mini-player .pb-mini-play { background: linear-gradient(145deg, var(--pb-cyan-bright), var(--pb-cyan)); box-shadow: 0 3px 12px rgba(78, 167, 200, 0.15); }
+.pb-mini-player .pb-mini-play:hover:not(:disabled) { color: var(--pb-bg-deep); background: var(--pb-cyan-bright); transform: scale(1.04); }
+.pb-mini-player button[data-favorite="true"] { color: var(--pb-gold); background: rgba(226, 181, 109, 0.08); }
+.pb-mini-progress > div { font-variant-numeric: tabular-nums; }
+.pb-mini-footer { padding-top: 8px; border-top: 1px solid var(--pb-border); }
+.pb-mini-player input[type="range"]:disabled { opacity: 0.4; cursor: default; }
+
+/* Remove space reserved for the old full-width bottom player. */
+.pb-local-library { padding: 24px 24px 40px !important; }
+.pb-settings { min-width: 0; }
+.pb-settings-nav { overflow-y: auto; min-height: 0; }
+.pb-settings-content { min-width: 0; padding: 24px 28px 48px !important; overscroll-behavior: contain; }
+[data-theme="phoebe"] .pb-settings-tab {
+  border-radius: 10px !important;
+  color: var(--pb-text-secondary) !important;
+  font-size: 13px !important;
+  transition: background 160ms ease, color 160ms ease !important;
+}
+[data-theme="phoebe"] .pb-settings-tab:hover { background: var(--pb-bg-hover) !important; color: var(--pb-text) !important; }
+[data-theme="phoebe"] .pb-settings-tab[aria-current="page"] { background: var(--pb-bg-active) !important; color: var(--pb-cyan-bright) !important; }
+.pb-settings-tab > span { color: inherit !important; }
+.pb-feature-card { background: linear-gradient(140deg, rgba(114, 213, 244, 0.04), transparent); padding: 18px; }
+.pb-feature-card h3 { margin: 0 0 8px; font-size: 15px; }
+.pb-feature-card p { color: var(--pb-text-secondary); line-height: 1.6; }
+.pb-feature-card label { flex-wrap: wrap; }
+.v-settings-path-capsule { min-width: 0; overflow-wrap: anywhere; }
+
+/* Keep virtualized row dimensions unchanged. */
+[data-theme="phoebe"] :is(input[type="text"], input[type="search"], textarea):focus { border-color: var(--pb-cyan-muted) !important; box-shadow: 0 0 0 2px rgba(114, 213, 244, 0.09) !important; }
+[data-theme="phoebe"] input::placeholder, [data-theme="phoebe"] textarea::placeholder { color: var(--pb-text-muted); opacity: 1; }
+.v-track__title, .v-track__artist { line-height: 1.4; }
+.v-track__dur { font-variant-numeric: tabular-nums; }
+[data-theme="phoebe"] .v-track:focus-within { background: var(--pb-bg-hover); }
+[data-theme="phoebe"] .v-track--active { box-shadow: inset 2px 0 var(--pb-cyan); }
+[data-theme="phoebe"] .v-ctx { padding: 6px; border-radius: 14px; }
+.v-ctx__header { padding: 10px; }
+.v-ctx__item { border-radius: 8px; min-height: 34px; gap: 10px; }
+.v-ctx__sep { margin: 6px 8px; }
+[data-theme="phoebe"] [data-pb-dialog="true"] { border-radius: 20px !important; max-width: calc(100vw - 32px) !important; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.pb-youtube-download, .pb-library-repair { padding: 12px 16px; }
+.pb-youtube-download summary, .pb-library-repair summary { font-weight: 600; line-height: 1.6; }
+.pb-youtube-download textarea { display: block; box-sizing: border-box; width: 100%; padding: 10px 12px; min-height: 78px; resize: vertical; font: inherit; line-height: 1.6; }
+.pb-youtube-download form > div { flex-wrap: wrap; }
+.pb-youtube-download button { min-height: 32px; font-weight: 600; }
+.pb-download-jobs > div { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--pb-border); border-radius: 10px; background: var(--pb-bg-panel); }
+.pb-download-jobs [data-status="downloading"] { border-left: 2px solid var(--pb-cyan); }
+.pb-download-jobs [data-status="error"] { border-left: 2px solid #d28e8e; }
+.pb-download-jobs [data-status="completed"] { border-left: 2px solid var(--pb-gold); }
+.pb-download-jobs small { margin: 4px 0; font-variant-numeric: tabular-nums; }
+.pb-download-jobs button { margin-top: 6px; }
+.pb-youtube-download [role="status"]:not(:empty) { margin-top: 10px; }
+
+@media (max-width: 1100px) {
+  .pb-settings { flex-direction: column; }
+  .pb-settings-nav { width: auto !important; max-height: 190px; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .pb-settings-nav > div { grid-column: 1 / -1; }
+  .pb-settings-content { padding: 20px 18px 32px !important; }
+  .pb-local-library { padding: 18px 16px 32px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="phoebe"] .pb-settings-tab { transition: none !important; }
+  .pb-mini-player .pb-mini-play:hover:not(:disabled) { transform: none; }
+}

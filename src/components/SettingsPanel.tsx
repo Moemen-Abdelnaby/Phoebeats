@@ -930,6 +930,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
             <input
               type="text"
               placeholder="Find a setting..."
+              aria-label="Search settings"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -961,6 +962,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
+                aria-label="Clear settings search"
                 style={{
                   position: "absolute",
                   right: "10px",
@@ -990,6 +992,8 @@ export const SettingsPanel = React.memo(function SettingsPanel({
           return (
             <button
               key={tab.id}
+              className="pb-settings-tab"
+              aria-current={isActive ? "page" : undefined}
               onClick={() => {
                 setSearchQuery("");
                 setActiveTab(tab.id);
@@ -1067,7 +1071,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
 
       <div
         style={{ flex: 1, overflowY: "auto", padding: "20px 24px 140px 24px" }}
-        className="custom-scrollbar"
+        className="pb-settings-content custom-scrollbar"
       >
         {searchQuery && (
           <div style={{ marginBottom: "20px" }}>

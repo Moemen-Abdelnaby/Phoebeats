@@ -3,6 +3,7 @@ mod cache;
 mod metadata;
 mod db;
 mod downloader;
+mod m3u;
 mod artwork_cache;
 
 use std::io::{Write, BufRead, BufReader};
@@ -3056,11 +3057,7 @@ async fn import_playlist_m3u(path: String) -> Result<Vec<String>, String> {
         let resolved = expand_tilde(&path);
         let content = std::fs::read_to_string(&resolved)
             .map_err(|e| format!("Read failed: {}", e))?;
-        let urls: Vec<String> = content.lines()
-            .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
-            .map(|l| l.trim().to_string())
-            .collect();
-        Ok(urls)
+        m3u::import_lines(&content, std::path::Path::new(&resolved))
     })
     .await
     .map_err(|e| e.to_string())?
