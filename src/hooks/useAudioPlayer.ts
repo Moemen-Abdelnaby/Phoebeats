@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Track, LocalTrack, RepeatMode } from "../types";
 import { publishPlaybackProgress } from "./playbackProgress";
+import { nextPlaybackIndex } from "../utils/playbackOrder";
 import { loadLS, saveLS, parseDurationToSeconds } from "../utils";
 
 interface UseAudioPlayerProps {
@@ -380,6 +381,7 @@ export function useAudioPlayer({
         index: Math.max(0, idx),
       };
       setQueue([]);
+      queueRef.current = [];
       setPlayHistory((prev) =>
         [track, ...prev.filter((t) => t.url !== track.url)].slice(0, 50),
       );
@@ -435,125 +437,59 @@ export function useAudioPlayer({
 
     const track = currentTrackRef.current;
     const repeat = repeatModeRef.current;
-
-    if (repeat === "off") {
-      setIsPlayingSync(false);
-      invoke("pause_audio").catch(() => {});
-      return;
-    }
-
-    const isLocal =
-      track?.url?.startsWith("local://") ||
-      currentLocalPathRef.current !== null;
-
-    if (isLocal) {
-      if (repeat === "one" && track) {
-        const list = localTracksListRef.current;
-        const idx = localTrackIndexRef.current;
-        if (list[idx]) {
-          handlePlayLocalTrack(list[idx], list, idx);
-        } else if (list[0]) {
-          handlePlayLocalTrack(list[0], list, 0);
-        }
-        setTimeout(() => {
-          endDetectedRef.current = false;
-        }, 1500);
-        return;
-      }
-
-      if (repeat === "all") {
-        const list = localTracksListRef.current;
-        const idx = localTrackIndexRef.current;
-        if (list.length > 1) {
-          let nextIdx: number;
-          if (shuffle) {
-            do {
-              nextIdx = Math.floor(Math.random() * list.length);
-            } while (nextIdx === idx && list.length > 1);
-          } else {
-            nextIdx = idx + 1;
-          }
-          if (nextIdx < list.length) {
-            localTrackIndexRef.current = nextIdx;
-            setTimeout(
-              () => handlePlayLocalTrack(list[nextIdx], list, nextIdx),
-              0,
-            );
-            return;
-          } else {
-            localTrackIndexRef.current = 0;
-            setTimeout(() => handlePlayLocalTrack(list[0], list, 0), 0);
-            return;
-          }
-        } else if (list.length === 1) {
-          handlePlayLocalTrack(list[0], list, 0);
-          return;
-        }
-      }
-
-      setIsPlayingSync(false);
-      return;
-    }
+    const ctx = playlistContextRef.current;
+    const folderPlayback = !ctx && localTracksListRef.current.length > 0 &&
+      (track?.url.startsWith("local://") || currentLocalPathRef.current !== null);
 
     if (repeat === "one" && track) {
-      handlePlayTrack(track, true);
-      setTimeout(() => {
-        endDetectedRef.current = false;
-      }, 1500);
+      if (folderPlayback) {
+        const list = localTracksListRef.current;
+        const index = localTrackIndexRef.current;
+        if (list[index]) void handlePlayLocalTrack(list[index], list, index);
+        else void handlePlayTrack(track, true);
+      } else {
+        void handlePlayTrack(track, true);
+      }
       return;
     }
 
-    if (repeat === "all") {
-      const q = queueRef.current;
-      if (q.length > 0) {
-        const [next, ...rest] = q;
-        queueRef.current = rest;
-        setQueue(rest);
-        setTimeout(() => handlePlayTrack(next, true), 0);
+    if (!folderPlayback && queueRef.current.length > 0) {
+      const [next, ...rest] = queueRef.current;
+      queueRef.current = rest;
+      setQueue(rest);
+      void handlePlayTrack(next, true);
+      return;
+    }
+
+    if (ctx) {
+      const next = nextPlaybackIndex(ctx.tracks.length, ctx.index, repeat, shuffle);
+      if (next !== null) {
+        playlistContextRef.current = { ...ctx, index: next };
+        void handlePlayTrack(ctx.tracks[next], true);
         return;
       }
-
-      const ctx = playlistContextRef.current;
-      if (ctx && ctx.tracks.length > 1) {
-        let nextIdx: number;
-        if (shuffle) {
-          do {
-            nextIdx = Math.floor(Math.random() * ctx.tracks.length);
-          } while (nextIdx === ctx.index && ctx.tracks.length > 1);
-        } else {
-          nextIdx = ctx.index + 1;
-        }
-        if (nextIdx < ctx.tracks.length) {
-          playlistContextRef.current = { ...ctx, index: nextIdx };
-          setTimeout(() => handlePlayTrack(ctx.tracks[nextIdx], true), 0);
-          return;
-        } else {
-          playlistContextRef.current = { ...ctx, index: 0 };
-          setTimeout(() => handlePlayTrack(ctx.tracks[0], true), 0);
-          return;
-        }
-      }
-
-      if (track) {
-        setTimeout(() => handlePlayTrack(track, true), 0);
+    } else if (folderPlayback) {
+      const list = localTracksListRef.current;
+      const next = nextPlaybackIndex(list.length, localTrackIndexRef.current, repeat, shuffle);
+      if (next !== null) {
+        localTrackIndexRef.current = next;
+        void handlePlayLocalTrack(list[next], list, next);
         return;
       }
+    } else if (repeat === "all" && track) {
+      void handlePlayTrack(track, true);
+      return;
     }
 
     setIsPlayingSync(false);
-  }, [
-    handlePlayTrack,
-    handlePlayLocalTrack,
-    setIsPlayingSync,
-    shuffle,
-    setQueue,
-  ]);
+    invoke("pause_audio").catch(() => {});
+  }, [handlePlayTrack, handlePlayLocalTrack, setIsPlayingSync, shuffle, setQueue]);
 
   const handleSkipForward = useCallback(async () => {
     const track = currentTrackRef.current;
     const isLocal =
-      track?.url?.startsWith("local://") ||
-      currentLocalPathRef.current !== null;
+      !playlistContextRef.current &&
+      (track?.url?.startsWith("local://") || currentLocalPathRef.current !== null);
 
     if (isLocal) {
       const list = localTracksListRef.current;
@@ -617,7 +553,7 @@ export function useAudioPlayer({
 
   const handleSkipBack = useCallback(async () => {
     const track = currentTrackRef.current;
-    const isLocal = track?.url?.startsWith("local://");
+    const isLocal = !playlistContextRef.current && track?.url?.startsWith("local://");
 
     if (isLocal) {
       if (progressSecondsRef.current > 3) {
