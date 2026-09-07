@@ -1,0 +1,46 @@
+# Maintainer: rry0ku <https://github.com/rry0ku>
+pkgname=phoebeats
+pkgver=0.1.5
+pkgrel=1
+pkgdesc="Ad-free desktop music streaming powered by YouTube"
+arch=('x86_64')
+url="https://github.com/rry0ku/veluna"
+license=('MIT')
+depends=('mpv' 'yt-dlp' 'ffmpeg' 'webkit2gtk-4.1' 'libayatana-appindicator' 'gtk3' 'hicolor-icon-theme')
+makedepends=('cargo' 'nodejs' 'npm' 'pkg-config' 'openssl' 'librsvg')
+# Supply the renamed project's source archive locally until its release repository is configured.
+source=("${pkgname}-v${pkgver}.tar.gz"
+        "phoebeats.desktop")
+sha256sums=('SKIP'
+            'SKIP')
+
+build() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+    npm ci
+    npx tauri build --no-bundle
+}
+
+package() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+
+    # Install compiled binary
+    install -Dm755 "src-tauri/target/release/phoebeats" "${pkgdir}/usr/bin/phoebeats"
+
+    # Install desktop entry
+    install -Dm644 "${srcdir}/phoebeats.desktop" "${pkgdir}/usr/share/applications/phoebeats.desktop"
+
+    # Install application icons
+    if [ -f "src-tauri/icons/32x32.png" ]; then
+        install -Dm644 "src-tauri/icons/32x32.png" "${pkgdir}/usr/share/icons/hicolor/32x32/apps/phoebeats.png"
+    fi
+    if [ -f "src-tauri/icons/128x128.png" ]; then
+        install -Dm644 "src-tauri/icons/128x128.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/phoebeats.png"
+    fi
+    if [ -f "src-tauri/icons/128x128@2x.png" ]; then
+        install -Dm644 "src-tauri/icons/128x128@2x.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/phoebeats.png"
+    fi
+    # Install application license
+    if [ -f "LICENSE" ]; then
+        install -Dm644 "LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    fi
+}

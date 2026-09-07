@@ -1,0 +1,139 @@
+ .github/ISSUE_TEMPLATE/bug_report.yml              |    8 [32m+[m[31m-[m
+ .github/ISSUE_TEMPLATE/feature_request.yml         |    6 [32m+[m[31m-[m
+ .github/workflows/release.yml                      |    6 [32m+[m[31m-[m
+ CONTRIBUTING.md                                    |   16 [32m+[m[31m-[m
+ README.md                                          |   63 [32m+[m[31m-[m
+ SECURITY.md                                        |    8 [32m+[m[31m-[m
+ docs/branding.md                                   |   22 [32m+[m
+ docs/compact-ui.md                                 |   30 [32m+[m
+ docs/index.html                                    |   72 [32m+[m[31m-[m
+ docs/install.sh                                    |    6 [32m+[m[31m-[m
+ docs/phoebe-theme.md                               |   63 [32m+[m
+ docs/phoebeats_icon.png                            |  Bin [31m0[m -> [32m874209[m bytes
+ docs/veluna_icon.png                               |  Bin [31m16899[m -> [32m0[m bytes
+ index.html                                         |    4 [32m+[m[31m-[m
+ package-lock.json                                  |    4 [32m+[m[31m-[m
+ package.json                                       |    2 [32m+[m[31m-[m
+ packaging/.SRCINFO                                 |    8 [32m+[m[31m-[m
+ packaging/PKGBUILD                                 |   17 [32m+[m[31m-[m
+ packaging/{veluna.desktop => phoebeats.desktop}    |    8 [32m+[m[31m-[m
+ public/wallpapers/phoebe-poster.jpg                |  Bin [31m0[m -> [32m117235[m bytes
+ public/wallpapers/phoebe.mp4                       |  Bin [31m0[m -> [32m33533764[m bytes
+ scripts/build-arch-pkg.sh                          |   28 [32m+[m[31m-[m
+ scripts/compact-player.test.cjs                    |   81 [32m+[m
+ scripts/discord-rpc.test.cjs                       |   79 [32m+[m
+ scripts/local-library.test.cjs                     |   84 [32m+[m
+ scripts/local-playlist-artwork.test.cjs            |   70 [32m+[m
+ scripts/phoebe-theme.test.cjs                      |   84 [32m+[m
+ scripts/prepare-brand-icon.ps1                     |   16 [32m+[m
+ scripts/setup-deps.js                              |    4 [32m+[m[31m-[m
+ scripts/wallpaper-playback.test.cjs                |  156 [32m+[m
+ scripts/youtube-link.test.cjs                      |   36 [32m+[m
+ src-tauri/Cargo.lock                               |   52 [32m+[m[31m-[m
+ src-tauri/Cargo.toml                               |    2 [32m+[m[31m-[m
+ src-tauri/icons/128x128.png                        |  Bin [31m3798[m -> [32m30604[m bytes
+ src-tauri/icons/128x128@2x.png                     |  Bin [31m7814[m -> [32m94309[m bytes
+ src-tauri/icons/32x32.png                          |  Bin [31m1177[m -> [32m2988[m bytes
+ src-tauri/icons/64x64.png                          |  Bin [31m0[m -> [32m9810[m bytes
+ src-tauri/icons/Square107x107Logo.png              |  Bin [31m0[m -> [32m22786[m bytes
+ src-tauri/icons/Square142x142Logo.png              |  Bin [31m0[m -> [32m36225[m bytes
+ src-tauri/icons/Square150x150Logo.png              |  Bin [31m0[m -> [32m39764[m bytes
+ src-tauri/icons/Square284x284Logo.png              |  Bin [31m0[m -> [32m111629[m bytes
+ src-tauri/icons/Square30x30Logo.png                |  Bin [31m0[m -> [32m2646[m bytes
+ src-tauri/icons/Square310x310Logo.png              |  Bin [31m0[m -> [32m128847[m bytes
+ src-tauri/icons/Square44x44Logo.png                |  Bin [31m0[m -> [32m5173[m bytes
+ src-tauri/icons/Square71x71Logo.png                |  Bin [31m0[m -> [32m11704[m bytes
+ src-tauri/icons/Square89x89Logo.png                |  Bin [31m0[m -> [32m16830[m bytes
+ src-tauri/icons/StoreLogo.png                      |  Bin [31m0[m -> [32m6501[m bytes
+ .../android/mipmap-anydpi-v26/ic_launcher.xml      |    5 [32m+[m
+ .../icons/android/mipmap-hdpi/ic_launcher.png      |  Bin [31m0[m -> [32m4821[m bytes
+ .../android/mipmap-hdpi/ic_launcher_foreground.png |  Bin [31m0[m -> [32m45163[m bytes
+ .../android/mipmap-hdpi/ic_launcher_round.png      |  Bin [31m0[m -> [32m5029[m bytes
+ .../icons/android/mipmap-mdpi/ic_launcher.png      |  Bin [31m0[m -> [32m4638[m bytes
+ .../android/mipmap-mdpi/ic_launcher_foreground.png |  Bin [31m0[m -> [32m23185[m bytes
+ .../android/mipmap-mdpi/ic_launcher_round.png      |  Bin [31m0[m -> [32m4798[m bytes
+ .../icons/android/mipmap-xhdpi/ic_launcher.png     |  Bin [31m0[m -> [32m14935[m bytes
+ .../mipmap-xhdpi/ic_launcher_foreground.png        |  Bin [31m0[m -> [32m71484[m bytes
+ .../android/mipmap-xhdpi/ic_launcher_round.png     |  Bin [31m0[m -> [32m15632[m bytes
+ .../icons/android/mipmap-xxhdpi/ic_launcher.png    |  Bin [31m0[m -> [32m28906[m bytes
+ .../mipmap-xxhdpi/ic_launcher_foreground.png       |  Bin [31m0[m -> [32m138391[m bytes
+ .../android/mipmap-xxhdpi/ic_launcher_round.png    |  Bin [31m0[m -> [32m30369[m bytes
+ .../icons/android/mipmap-xxxhdpi/ic_launcher.png   |  Bin [31m0[m -> [32m46147[m bytes
+ .../mipmap-xxxhdpi/ic_launcher_foreground.png      |  Bin [31m0[m -> [32m223305[m bytes
+ .../android/mipmap-xxxhdpi/ic_launcher_round.png   |  Bin [31m0[m -> [32m48268[m bytes
+ .../android/values/ic_launcher_background.xml      |    4 [32m+[m
+ src-tauri/icons/icon.icns                          |  Bin [31m0[m -> [32m1826310[m bytes
+ src-tauri/icons/icon.ico                           |  Bin [31m4286[m -> [32m117695[m bytes
+ src-tauri/icons/icon.png                           |  Bin [31m16906[m -> [32m299243[m bytes
+ src-tauri/icons/ios/AppIcon-20x20@1x.png           |  Bin [31m0[m -> [32m1306[m bytes
+ src-tauri/icons/ios/AppIcon-20x20@2x-1.png         |  Bin [31m0[m -> [32m4435[m bytes
+ src-tauri/icons/ios/AppIcon-20x20@2x.png           |  Bin [31m0[m -> [32m4435[m bytes
+ src-tauri/icons/ios/AppIcon-20x20@3x.png           |  Bin [31m0[m -> [32m8783[m bytes
+ src-tauri/icons/ios/AppIcon-29x29@1x.png           |  Bin [31m0[m -> [32m2492[m bytes
+ src-tauri/icons/ios/AppIcon-29x29@2x-1.png         |  Bin [31m0[m -> [32m8347[m bytes
+ src-tauri/icons/ios/AppIcon-29x29@2x.png           |  Bin [31m0[m -> [32m8347[m bytes
+ src-tauri/icons/ios/AppIcon-29x29@3x.png           |  Bin [31m0[m -> [32m16242[m bytes
+ src-tauri/icons/ios/AppIcon-40x40@1x.png           |  Bin [31m0[m -> [32m4435[m bytes
+ src-tauri/icons/ios/AppIcon-40x40@2x-1.png         |  Bin [31m0[m -> [32m14232[m bytes
+ src-tauri/icons/ios/AppIcon-40x40@2x.png           |  Bin [31m0[m -> [32m14232[m bytes
+ src-tauri/icons/ios/AppIcon-40x40@3x.png           |  Bin [31m0[m -> [32m27639[m bytes
+ src-tauri/icons/ios/AppIcon-512@2x.png             |  Bin [31m0[m -> [32m990776[m bytes
+ src-tauri/icons/ios/AppIcon-60x60@2x.png           |  Bin [31m0[m -> [32m27639[m bytes
+ src-tauri/icons/ios/AppIcon-60x60@3x.png           |  Bin [31m0[m -> [32m53427[m bytes
+ src-tauri/icons/ios/AppIcon-76x76@1x.png           |  Bin [31m0[m -> [32m13048[m bytes
+ src-tauri/icons/ios/AppIcon-76x76@2x.png           |  Bin [31m0[m -> [32m40577[m bytes
+ src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png       |  Bin [31m0[m -> [32m47167[m bytes
+ src-tauri/packaging/postinst.sh                    |    6 [32m+[m[31m-[m
+ src-tauri/src/cache.rs                             |   16 [32m+[m[31m-[m
+ src-tauri/src/db.rs                                |    8 [32m+[m[31m-[m
+ src-tauri/src/main.rs                              |   96 [32m+[m[31m-[m
+ src-tauri/src/metadata.rs                          |   23 [32m+[m[31m-[m
+ src-tauri/src/tray.rs                              |   14 [32m+[m[31m-[m
+ src-tauri/tauri.conf.json                          |   17 [32m+[m[31m-[m
+ src/App.css                                        |   10 [32m+[m[31m-[m
+ src/App.tsx                                        | 4989 [32m+++++++++[m[31m-----[m
+ src/assets/brand-icon.png                          |  Bin [31m0[m -> [32m874209[m bytes
+ src/assets/brand.png                               |  Bin [31m0[m -> [32m781704[m bytes
+ src/compact-layout.css                             |  317 [32m+[m
+ src/components/BatchActionBar.tsx                  |  874 [32m++[m[31m-[m
+ src/components/CssThemeEditor.tsx                  |  236 [32m+[m
+ src/components/DownloadsPanel.tsx                  | 1494 [32m+++[m[31m--[m
+ src/components/LocalPlaylistArtwork.tsx            |   45 [32m+[m
+ src/components/Modals.tsx                          | 3246 [32m++++++[m[31m---[m
+ src/components/OnboardingModal.tsx                 |  926 [32m++[m[31m-[m
+ src/components/SettingsPanel.tsx                   | 7027 [32m+++++++++++++++[m[31m-----[m
+ src/components/SleepTimerPopover.tsx               |  320 [32m+[m[31m-[m
+ src/components/ThemedSelect.tsx                    |  205 [32m+[m[31m-[m
+ src/components/TrackRow.tsx                        |  640 [32m+[m[31m-[m
+ src/components/VideoWallpaper.tsx                  |   60 [32m+[m
+ src/components/WaveformBar.tsx                     |   62 [32m+[m[31m-[m
+ src/components/YoutubeMp3Download.tsx              |   87 [32m+[m
+ src/components/layout/CompactPlayer.tsx            |  227 [32m+[m
+ src/components/layout/ContextMenu.tsx              | 1763 [32m+++[m[31m--[m
+ src/components/layout/DownloadsFlyout.tsx          |  835 [32m+[m[31m--[m
+ src/components/layout/PlayerBar.tsx                | 1846 [32m+++[m[31m--[m
+ src/components/layout/QueuePanel.tsx               | 1162 [32m+++[m[31m-[m
+ src/components/layout/Sidebar.tsx                  |  678 [32m+[m[31m-[m
+ src/components/layout/TopBar.tsx                   |  375 [32m+[m[31m-[m
+ src/components/views/ArtistView.tsx                |  741 [31m---[m
+ src/components/views/ArtistsView.tsx               |  627 [31m--[m
+ src/components/views/HistoryView.tsx               | 1621 [32m+++[m[31m--[m
+ src/components/views/HomeView.tsx                  | 5322 [32m+++++++++[m[31m------[m
+ src/components/views/LyricsView.tsx                |  830 [32m++[m[31m-[m
+ src/components/views/PlaylistsView.tsx             | 3356 [32m++++++[m[31m----[m
+ src/components/views/StatsView.tsx                 |   52 [32m+[m[31m-[m
+ src/hooks/cssThemes.ts                             |   63 [32m+[m
+ src/hooks/useAudioPlayer.ts                        |    4 [32m+[m[31m-[m
+ src/hooks/useDiscordRpc.ts                         |   76 [32m+[m
+ ...{useListeningStats.ts => usePlaybackHistory.ts} |    4 [32m+[m[31m-[m
+ src/hooks/usePlaylists.ts                          |  368 [32m+[m[31m-[m
+ src/hooks/useTheme.ts                              |  152 [32m+[m[31m-[m
+ src/hooks/wallpaperPlayback.ts                     |   77 [32m+[m
+ src/main.tsx                                       |  103 [32m+[m[31m-[m
+ src/phoebe-theme.css                               |  413 [32m++[m
+ src/types.ts                                       |    2 [32m+[m[31m-[m
+ src/utils.ts                                       |   79 [31m-[m
+ src/utils/enrichLocalTracks.ts                     |   33 [32m+[m
+ src/utils/youtubeLink.ts                           |   32 [32m+[m
+ src/vite-env.d.ts                                  |    1 [32m+[m
+ 138 files changed, 28267 insertions(+), 14337 deletions(-)

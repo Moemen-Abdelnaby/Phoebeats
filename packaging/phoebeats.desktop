@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Phoebeats
+Comment=Ad-free desktop music streaming powered by YouTube
+Exec=phoebeats %U
+Icon=phoebeats
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;Music;
+Keywords=music;player;streaming;youtube;audio;
+StartupWMClass=phoebeats

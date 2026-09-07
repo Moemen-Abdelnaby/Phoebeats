@@ -1,0 +1,413 @@
+/* Phoebe's night scene. Loaded after App.css and before user Custom CSS. */
+:root {
+  --pb-bg-deep: #07101a;
+  --pb-bg-navy: #0c1724;
+  --pb-bg-panel: rgba(8, 18, 30, 0.56);
+  --pb-bg-panel-strong: rgba(7, 15, 26, 0.76);
+  --pb-bg-hover: rgba(76, 173, 220, 0.1);
+  --pb-bg-active: rgba(86, 196, 238, 0.16);
+  --pb-cyan: #72d5f4;
+  --pb-cyan-bright: #a7eaff;
+  --pb-cyan-muted: #4ea7c8;
+  --pb-gold: #e2b56d;
+  --pb-gold-bright: #ffd99a;
+  --pb-text: #f4f8fb;
+  --pb-text-secondary: #aabac8;
+  --pb-text-muted: #718393;
+  --pb-border: rgba(137, 205, 232, 0.15);
+  --pb-border-hover: rgba(137, 205, 232, 0.3);
+  --pb-radius-small: 8px;
+  --pb-radius-medium: 14px;
+  --pb-radius-large: 20px;
+  --pb-blur: 18px;
+  --pb-shadow: 0 8px 28px rgba(0, 5, 14, 0.24);
+}
+
+:root[data-theme="phoebe"] {
+  --v-bg0: rgba(8, 18, 30, 0.26);
+  --v-bg0-rgb: 7, 16, 26;
+  --v-bg1: var(--pb-bg-panel);
+  --v-bg2: var(--pb-bg-panel-strong);
+  --v-bg2-rgb: 12, 23, 36;
+  --v-bg3: rgba(25, 46, 63, 0.65);
+  --v-bg4: rgba(42, 66, 85, 0.66);
+  --v-bg5: rgba(57, 83, 104, 0.72);
+  --v-fg: var(--pb-text);
+  --v-fg2: var(--pb-text-secondary);
+  --v-fg3: var(--pb-text-muted);
+  --v-fg4: var(--pb-text-muted);
+  --v-bdr: var(--pb-border);
+  --v-bdr2: var(--pb-border);
+  --v-bdr3: var(--pb-border-hover);
+  --v-accent: var(--pb-cyan);
+  --v-accent-rgb: 114, 213, 244;
+  color-scheme: dark;
+  background: var(--pb-bg-deep);
+}
+
+.pb-app {
+  position: relative;
+  isolation: isolate;
+}
+.pb-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--pb-bg-deep);
+}
+.pb-wallpaper[hidden] {
+  display: none;
+}
+.pb-wallpaper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.pb-wallpaper-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 12, 23, 0.54), rgba(5, 13, 24, 0.18) 60%),
+    linear-gradient(
+      0deg,
+      rgba(4, 11, 21, 0.7),
+      rgba(4, 11, 21, 0.12) 55%,
+      rgba(4, 11, 21, 0.38)
+    );
+}
+[data-theme="phoebe"] body,
+[data-theme="phoebe"] #root,
+[data-theme="phoebe"] .pb-app {
+  background: transparent !important;
+}
+[data-theme="phoebe"] .pb-layout {
+  gap: 10px;
+  padding: 10px 10px 0;
+}
+[data-theme="phoebe"] .pb-main {
+  background: rgba(8, 18, 30, 0.22);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-large);
+  backdrop-filter: blur(var(--pb-blur));
+  -webkit-backdrop-filter: blur(var(--pb-blur));
+  box-shadow: var(--pb-shadow);
+}
+[data-theme="phoebe"]
+  :is(
+    .pb-sidebar,
+    .pb-queue,
+    .v-player-dock,
+    .pb-settings-nav,
+    .v-library-sidebar-card
+  ) {
+  background: var(--pb-bg-panel) !important;
+  border: 1px solid var(--pb-border) !important;
+  border-radius: var(--pb-radius-large) !important;
+  box-shadow: var(--pb-shadow);
+  backdrop-filter: blur(var(--pb-blur));
+  -webkit-backdrop-filter: blur(var(--pb-blur));
+}
+[data-theme="phoebe"] .pb-sidebar {
+  background: var(--pb-bg-panel-strong) !important;
+}
+[data-theme="phoebe"] .pb-queue:not([data-open="true"]) {
+  border: 0 !important;
+}
+[data-theme="phoebe"] .v-topbar {
+  background: transparent !important;
+  border-bottom: 1px solid var(--pb-border);
+  box-shadow: none;
+}
+[data-theme="phoebe"] .v-player-dock {
+  background: rgba(7, 15, 26, 0.86) !important;
+  border-color: var(--pb-border-hover) !important;
+}
+[data-theme="phoebe"] .v-player-dock:hover {
+  box-shadow: var(--pb-shadow);
+}
+[data-theme="phoebe"] :is(.v-pl-card, .v-card) {
+  background: var(--pb-bg-panel);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-medium);
+  box-shadow: var(--pb-shadow);
+}
+[data-theme="phoebe"] :is(.v-pl-card, .v-card):hover {
+  background: var(--pb-bg-hover);
+  border-color: var(--pb-border-hover);
+  transform: translateY(-1px);
+}
+[data-theme="phoebe"] :is(.v-nav-btn, .v-pl-item, .v-track) {
+  border-radius: var(--pb-radius-small);
+  transition:
+    background 160ms,
+    border-color 160ms,
+    color 160ms;
+}
+[data-theme="phoebe"]
+  :is(.v-nav-btn, .v-pl-item, .v-track, .v-queue-item):hover {
+  background: var(--pb-bg-hover);
+}
+[data-theme="phoebe"]
+  :is(
+    .v-nav-btn--active,
+    .v-pl-item--active,
+    .v-track--active,
+    .v-queue-item--active
+  ) {
+  background: var(--pb-bg-active) !important;
+  box-shadow: inset 2px 0 var(--pb-cyan);
+}
+[data-theme="phoebe"]
+  :is(.v-nav-btn--active, .v-pl-item--active)
+  :is(span, svg),
+[data-theme="phoebe"] .v-track--active .v-track__title {
+  color: var(--pb-cyan) !important;
+}
+[data-theme="phoebe"] :is(.v-nav-btn--active, .v-pl-item--active)::before {
+  display: none;
+}
+[data-theme="phoebe"]
+  :is(
+    .v-track__art,
+    .v-card__art,
+    .v-pl-card__cover-wrapper,
+    .v-library-recent-art,
+    .pb-player-art
+  ) {
+  border-radius: var(--pb-radius-medium) !important;
+  box-shadow: var(--pb-shadow);
+}
+[data-theme="phoebe"] .pb-player-art {
+  box-shadow: 0 0 12px rgba(114, 213, 244, 0.12);
+}
+[data-theme="phoebe"] .lucide-heart[fill]:not([fill="none"]) {
+  color: var(--pb-gold) !important;
+  fill: var(--pb-gold) !important;
+}
+[data-theme="phoebe"] .lucide-heart[style*="fill:"]:not([style*="fill: none"]) {
+  color: var(--pb-gold) !important;
+  fill: var(--pb-gold) !important;
+}
+[data-theme="phoebe"] .pb-settings {
+  background: transparent !important;
+}
+
+[data-theme="phoebe"] button {
+  transition-duration: 160ms !important;
+}
+[data-theme="phoebe"]
+  :is(
+    .v-player-btn-play,
+    .v-pl-card__play-btn,
+    .pb-primary,
+    [data-pb-primary]
+  ) {
+  background: linear-gradient(
+    135deg,
+    var(--pb-cyan-bright),
+    var(--pb-cyan)
+  ) !important;
+  color: var(--pb-bg-deep) !important;
+  border: 1px solid var(--pb-cyan-bright) !important;
+  box-shadow: 0 3px 12px rgba(114, 213, 244, 0.15) !important;
+}
+[data-theme="phoebe"] :is(.v-player-btn-play, .v-pl-card__play-btn) {
+  border-radius: 50%;
+}
+[data-theme="phoebe"] :is(.pb-primary, [data-pb-primary]) {
+  border-radius: var(--pb-radius-small);
+}
+[data-theme="phoebe"]
+  :is(.pb-primary, [data-pb-primary], .v-player-btn-play):hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+}
+[data-theme="phoebe"]
+  :is(.pb-primary, [data-pb-primary], .v-player-btn-play):active:not(
+    :disabled
+  ) {
+  transform: scale(0.97);
+}
+[data-theme="phoebe"]
+  :is(
+    .v-topbar__back,
+    .v-library-import-btn,
+    .v-new-playlist-btn,
+    .v-css-editor .v-btn
+  ) {
+  background: var(--pb-bg-hover);
+  border: 1px solid var(--pb-border);
+  color: var(--pb-text-secondary);
+}
+[data-theme="phoebe"]
+  :is(button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--pb-cyan) !important;
+  outline-offset: 3px;
+}
+[data-theme="phoebe"]
+  :is(input:not([type="color"]):not([type="range"]), textarea, select) {
+  background: var(--pb-bg-panel-strong) !important;
+  border: 1px solid var(--pb-border) !important;
+  color: var(--pb-text) !important;
+  border-radius: var(--pb-radius-small);
+}
+[data-theme="phoebe"] :is(input, textarea)::placeholder {
+  color: var(--pb-text-muted);
+}
+[data-theme="phoebe"] :is(input, textarea):focus {
+  border-color: var(--pb-cyan-muted) !important;
+  box-shadow: 0 0 0 3px rgba(114, 213, 244, 0.06);
+}
+[data-theme="phoebe"] .v-home-search-container input {
+  backdrop-filter: blur(var(--pb-blur));
+}
+
+[data-theme="phoebe"] :is(.v-progress-track, .pb-volume-track) {
+  background: rgba(214, 229, 240, 0.18) !important;
+}
+[data-theme="phoebe"] :is(.v-progress-fill, .pb-volume-fill) {
+  background: linear-gradient(
+    90deg,
+    var(--pb-cyan-muted),
+    var(--pb-cyan-bright)
+  ) !important;
+  box-shadow: 0 0 6px rgba(114, 213, 244, 0.18);
+}
+[data-theme="phoebe"] :is(.v-progress-thumb, .slider-thumb) {
+  background: var(--pb-cyan-bright) !important;
+  box-shadow: 0 0 6px rgba(114, 213, 244, 0.24);
+}
+[data-theme="phoebe"]
+  :is(
+    .v-progress-tooltip,
+    .v-ctx,
+    .v-glass-popover,
+    .v-popover-glass,
+    .v-sidebar-playlist-menu,
+    .pb-select-menu
+  ) {
+  background: rgba(6, 14, 24, 0.9) !important;
+  border: 1px solid var(--pb-border-hover) !important;
+  border-radius: var(--pb-radius-medium);
+  box-shadow: 0 16px 44px rgba(0, 5, 14, 0.4);
+  backdrop-filter: blur(var(--pb-blur));
+  -webkit-backdrop-filter: blur(var(--pb-blur));
+}
+[data-theme="phoebe"]
+  :is(.v-ctx__item, .v-menu-item-pill, .v-sidebar-playlist-menu-item):hover {
+  background: var(--pb-bg-hover);
+  color: var(--pb-cyan-bright);
+}
+[data-theme="phoebe"] [data-pb-overlay] {
+  background: rgba(2, 8, 16, 0.5) !important;
+  backdrop-filter: blur(6px) !important;
+}
+[data-theme="phoebe"] [data-pb-dialog] {
+  background: rgba(6, 14, 24, 0.86) !important;
+  border: 1px solid var(--pb-border-hover) !important;
+  border-radius: var(--pb-radius-large) !important;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 24px 72px rgba(0, 5, 14, 0.6) !important;
+}
+[data-theme="phoebe"] * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(114, 213, 244, 0.3) transparent;
+}
+[data-theme="phoebe"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-theme="phoebe"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-theme="phoebe"] ::-webkit-scrollbar-thumb {
+  background: rgba(114, 213, 244, 0.3);
+  border-radius: 8px;
+}
+[data-theme="phoebe"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(114, 213, 244, 0.5);
+}
+/* The wallpaper supplies motion; decorative pulses/equalizers stay still. */
+[data-theme="phoebe"]
+  :is(
+    .animate-pulse,
+    .yt-pulse-logo,
+    .yt-rotate-outer,
+    .yt-rotate-inner,
+    .queue-badge-pulse,
+    .animate-dl-pulse
+  ),
+[data-theme="phoebe"] [style*="infinite"]:not([style*="spin"]) {
+  animation: none !important;
+}
+[data-theme="phoebe"] [style*="animation"]:not([style*="infinite"]) {
+  animation-duration: 160ms !important;
+}
+.v-css-editor {
+  display: grid;
+  gap: 12px;
+}
+.v-css-editor p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--v-fg2);
+  font-size: 12px;
+}
+.v-css-editor label {
+  font-size: 12px;
+  color: var(--v-fg2);
+}
+.v-css-editor .v-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.v-css-editor select,
+.v-css-editor input {
+  padding: 8px 10px;
+  margin-left: 8px;
+}
+
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  [data-theme="phoebe"]
+    :is(
+      .pb-sidebar,
+      .pb-queue,
+      .v-player-dock,
+      .pb-main,
+      .v-ctx,
+      [data-pb-dialog]
+    ) {
+    background: rgba(8, 18, 30, 0.94) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="phoebe"] *,
+  [data-theme="phoebe"] *::before,
+  [data-theme="phoebe"] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+[data-theme="phoebe"].v-perf-mode {
+  --pb-blur: 0px;
+}
+[data-theme="phoebe"].v-perf-mode
+  :is(
+    .pb-sidebar,
+    .pb-main,
+    .pb-queue,
+    .v-player-dock,
+    .v-ctx,
+    [data-pb-dialog]
+  ) {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(8, 18, 30, 0.94) !important;
+}
