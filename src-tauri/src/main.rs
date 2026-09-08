@@ -4068,18 +4068,14 @@ async fn update_discord_rpc(
             if !safe_artist.is_empty() {
                 act = act.state(&safe_artist);
             }
-            let mut assets = activity::Assets::new()
-                .large_image("icon")
+            // Hosted in this Discord application's Rich Presence assets.
+            // Keep accepting legacy cover arguments for IPC compatibility.
+            let _ = (cover_url, show_cover);
+            let assets = activity::Assets::new()
+                .large_image("riceura")
                 .large_text("Phoebeats")
                 .small_image("icon")
                 .small_text("Phoebeats");
-            if show_cover.unwrap_or(true) {
-                if let Some(ref url) = cover_url {
-                    if url.starts_with("https://") || url.starts_with("http://") {
-                        assets = assets.large_image(url).large_text(&safe_title);
-                    }
-                }
-            }
             act = act.assets(assets);
 
             let t_mode = time_display.as_deref().unwrap_or("remaining");

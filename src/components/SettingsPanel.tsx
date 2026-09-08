@@ -201,8 +201,6 @@ export const SettingsPanel = React.memo(function SettingsPanel({
   discordRpcEnabled,
   setDiscordRpcEnabled,
   discordStatus,
-  discordShowCover: propDiscordShowCover,
-  setDiscordShowCover: propSetDiscordShowCover,
   discordTimeDisplay: propDiscordTimeDisplay,
   setDiscordTimeDisplay: propSetDiscordTimeDisplay,
   discordCustomBtn: propDiscordCustomBtn,
@@ -290,9 +288,6 @@ export const SettingsPanel = React.memo(function SettingsPanel({
     const v = loadLS<string>("vg_discordTimeDisplay", "remaining");
     return v === "elapsed" ? "elapsed" : "remaining";
   });
-  const [localDiscordShowCover, setLocalDiscordShowCover] = useState<boolean>(
-    () => loadLS("vg_discordShowCover", true),
-  );
   const [localDiscordCustomBtn, setLocalDiscordCustomBtn] = useState<boolean>(
     () => loadLS("vg_discordCustomBtn", false),
   );
@@ -313,15 +308,6 @@ export const SettingsPanel = React.memo(function SettingsPanel({
     saveLS("vg_discordTimeDisplay", v);
   };
 
-  const discordShowCover =
-    propDiscordShowCover !== undefined
-      ? propDiscordShowCover
-      : localDiscordShowCover;
-  const setDiscordShowCover = (v: boolean) => {
-    setLocalDiscordShowCover(v);
-    propSetDiscordShowCover?.(v);
-    saveLS("vg_discordShowCover", v);
-  };
 
   const discordCustomBtn =
     propDiscordCustomBtn !== undefined
@@ -3439,7 +3425,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 color: "var(--v-fg)",
                               }}
                             >
-                              Show Album Artwork
+                              Presence Artwork
                             </p>
                             <p
                               style={{
@@ -3448,17 +3434,9 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 marginTop: "4px",
                               }}
                             >
-                              Display large track thumbnail on Discord presence
+                              Uses fixed artwork for every track
                             </p>
                           </div>
-                          <SettingsSwitch
-                            checked={discordShowCover}
-                            onChange={() => {
-                              const next = !discordShowCover;
-                              setDiscordShowCover(next);
-                              saveLS("vg_discordShowCover", next);
-                            }}
-                          />
                         </div>
 
                         <div
