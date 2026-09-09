@@ -39,6 +39,7 @@ import { LibraryRepair } from "./components/LibraryRepair";
 import { usePlaylistArtwork } from "./hooks/usePlaylistArtwork";
 import { YoutubeMp3Download } from "./components/YoutubeMp3Download";
 import { useDiscordRpc } from "./hooks/useDiscordRpc";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import { readCssThemes, saveCssThemes } from "./hooks/cssThemes";
 import { usePlaybackHistory } from "./hooks/usePlaybackHistory";
 import { useQueue } from "./hooks/useQueue";
@@ -191,7 +192,9 @@ export function App() {
   const [autoCheckUpdates, setAutoCheckUpdatesState] = useState<boolean>(() =>
     loadLS("vg_autoCheckUpdates", true),
   );
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const appUpdater = useAppUpdater(autoCheckUpdates);
+  const isCheckingUpdate = appUpdater.state.phase === "checking";
+  const updateAvailable = appUpdater.state.version;
   const [downloadPath, setDownloadPath] = useState<string>(() => {
     return loadLS("vg_dlPath", "~/Music/Phoebeats");
   });
@@ -212,6 +215,12 @@ export function App() {
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState<boolean>(() =>
     loadLS("vg_discordRpcEnabled", true),
   );
+  const [discordApplicationId, setDiscordApplicationId] = useState<string>(() =>
+    loadLS("vg_discordApplicationId", "1546196215153041448"),
+  );
+  useEffect(() => {
+    saveLS("vg_discordApplicationId", discordApplicationId);
+  }, [discordApplicationId]);
   const [discordShowCover, setDiscordShowCover] = useState<boolean>(() =>
     loadLS("vg_discordShowCover", true),
   );
@@ -232,7 +241,6 @@ export function App() {
   );
 
   const [appVersion, setAppVersion] = useState<string>("0.1.5");
-  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
 
   const setCacheEnabled = useCallback((enabled: boolean) => {
     setCacheEnabledState(enabled);
@@ -750,6 +758,7 @@ export function App() {
   }, [currentTrack, isPlaying]);
 
   const discordStatus = useDiscordRpc({
+    applicationId: discordApplicationId,
     enabled: discordRpcEnabled,
     playing: isPlaying,
     track: currentTrack,
@@ -766,12 +775,6 @@ export function App() {
     invoke<string>("get_app_version")
       .then(setAppVersion)
       .catch(() => {});
-    const autoCheck = loadLS("vg_autoCheckUpdates", true);
-    if (autoCheck) {
-      invoke<string | null>("check_for_update")
-        .then((v) => setUpdateAvailable(v ?? null))
-        .catch(() => {});
-    }
   }, []);
 
   useEffect(() => {
@@ -785,19 +788,7 @@ export function App() {
     }
   }, []);
 
-  const handleCheckUpdate = useCallback(async () => {
-    setIsCheckingUpdate(true);
-    try {
-      const v = await invoke<string | null>("check_for_update");
-      setUpdateAvailable(v ?? null);
-      if (v) showToast(`Update available: v${v}`);
-      else showToast("You're up to date!");
-    } catch (e) {
-      showToast(`Failed to check updates: ${e}`);
-    } finally {
-      setIsCheckingUpdate(false);
-    }
-  }, [showToast]);
+  const handleCheckUpdate = appUpdater.check;
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -1563,6 +1554,7 @@ export function App() {
         discordCustomBtn,
         discordBtnLabel,
         discordBtnUrl,
+        discordApplicationId,
 
         networkProxy: loadLS("vg_networkProxy", ""),
         customInstance: loadLS("vg_customInstance", ""),
@@ -1632,6 +1624,7 @@ export function App() {
     discordCustomBtn,
     discordBtnLabel,
     discordBtnUrl,
+    discordApplicationId,
     lyricsSource,
     searchHistory,
     quickPicks,
@@ -1869,6 +1862,10 @@ export function App() {
         if (btnLabel !== undefined)
           setDiscordBtnLabel(ls("vg_discordBtnLabel", btnLabel));
 
+        const applicationId = data.discordApplicationId ?? data.vg_discordApplicationId;
+        if (typeof applicationId === "string" && /^[0-9]{17,20}$/.test(applicationId.trim())) {
+          setDiscordApplicationId(applicationId.trim());
+        }
         const btnUrl =
           data.discordBtnUrl !== undefined
             ? data.discordBtnUrl
@@ -2339,12 +2336,18 @@ export function App() {
               autoCheckUpdates={autoCheckUpdates}
               setAutoCheckUpdates={setAutoCheckUpdates}
               isCheckingUpdate={isCheckingUpdate}
+              appUpdateState={appUpdater.state}
+              appUpdateBusy={appUpdater.busy}
+              downloadAppUpdate={appUpdater.download}
+              installAppUpdate={appUpdater.install}
               updateAvailable={updateAvailable}
               handleCheckUpdate={handleCheckUpdate}
               appVersion={appVersion}
               trayEnabled={trayEnabled}
               setTrayEnabled={setTrayEnabled}
               discordStatus={discordStatus}
+              discordApplicationId={discordApplicationId}
+              setDiscordApplicationId={setDiscordApplicationId}
               discordRpcEnabled={discordRpcEnabled}
               setDiscordRpcEnabled={setDiscordRpcEnabled}
               discordShowCover={discordShowCover}

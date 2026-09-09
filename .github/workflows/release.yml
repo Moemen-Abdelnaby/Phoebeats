@@ -5,6 +5,18 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to release (for example v0.1.7)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -13,10 +25,15 @@ jobs:
   release-linux:
     name: 'Linux build'
     runs-on: ubuntu-22.04
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -52,35 +69,46 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate release version and signing setup
+        run: node scripts/check-release-config.cjs
+
       - name: Build Tauri Application & Publish Release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'v__VERSION__'
           releaseBody: 'See the assets below to download Phoebeats for your platform.'
-          releaseDraft: false
+          releaseDraft: true
+          uploadUpdaterJson: true
           prerelease: false
 
       - name: Build Arch Linux package (.pkg.tar.zst)
         run: |
           chmod +x ./scripts/build-arch-pkg.sh
-          ./scripts/build-arch-pkg.sh "${{ github.ref_name }}"
+          ./scripts/build-arch-pkg.sh "$RELEASE_TAG"
 
       - name: Upload Arch Linux .pkg.tar.zst to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} phoebeats-*.pkg.tar.zst --clobber
+          gh release upload "$RELEASE_TAG" phoebeats-*.pkg.tar.zst --clobber
 
   release-windows:
     name: 'Windows build'
+    # Serialize manifest uploads so the two platforms cannot overwrite each other.
+    needs: release-linux
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -110,19 +138,44 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate release version and signing setup
+        run: node scripts/check-release-config.cjs
+
       - name: Build Tauri Application & Publish Release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'v__VERSION__'
           releaseBody: 'See the assets below to download Phoebeats for your platform.'
-          releaseDraft: false
+          releaseDraft: true
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
           prerelease: false
 
       - name: Upload binaries.zip to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} binaries.zip --clobber
+          gh release upload "$env:RELEASE_TAG" binaries.zip --clobber
+
+  publish:
+    name: Publish complete update
+    needs: [release-linux, release-windows]
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Verify updater manifest
+        run: |
+          gh release download "$RELEASE_TAG" --pattern latest.json --dir "$RUNNER_TEMP/update"
+          node scripts/check-update-manifest.cjs "$RUNNER_TEMP/update/latest.json"
+      - name: Publish release
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest

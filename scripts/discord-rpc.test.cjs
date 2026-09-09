@@ -131,6 +131,7 @@ test("metadata, local track changes, speed and pause", async () => {
   await flush();
   assert.equal(h.calls[0].payload.coverUrl, null);
   assert.equal(h.calls[0].payload.trackUrl, null);
+  assert.equal(h.calls[0].payload.applicationId, "1546196215153041448");
   h.render({
     track: { ...h.options.track, title: "Two", url: "local://two" },
     speed: 2,
@@ -146,6 +147,19 @@ test("metadata, local track changes, speed and pause", async () => {
   await flush();
   assert.match(h.status, /Disabled/);
   assert.equal(h.calls.length, 3);
+});
+
+test("changing the Application ID immediately refreshes presence and blank restores default", async () => {
+  const h = harness();
+  h.render();
+  await flush();
+  h.render({ applicationId: "123456789012345678" });
+  await flush();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].payload.applicationId, "123456789012345678");
+  h.render({ applicationId: "" });
+  await flush();
+  assert.equal(h.calls[2].payload.applicationId, "1546196215153041448");
 });
 
 test("failed connections retry and normal progress does not flood Discord", async () => {

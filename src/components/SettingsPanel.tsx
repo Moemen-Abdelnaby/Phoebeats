@@ -127,6 +127,8 @@ export type SettingsPanelProps = {
   discordRpcEnabled: boolean;
   setDiscordRpcEnabled: (v: boolean) => void;
   discordStatus?: string;
+  discordApplicationId?: string;
+  setDiscordApplicationId?: (value: string) => void;
   discordShowCover?: boolean;
   setDiscordShowCover?: (v: boolean) => void;
   discordTimeDisplay?: "remaining" | "elapsed";
@@ -156,6 +158,10 @@ export type SettingsPanelProps = {
   autoCheckUpdates: boolean;
   setAutoCheckUpdates: (v: boolean) => void;
   isCheckingUpdate: boolean;
+  appUpdateState?: import("../hooks/useAppUpdater").AppUpdateState;
+  appUpdateBusy?: boolean;
+  downloadAppUpdate?: () => void;
+  installAppUpdate?: () => void;
   handleCheckUpdate: () => void;
   performanceMode: boolean;
   setPerformanceMode: (v: boolean) => void;
@@ -201,6 +207,8 @@ export const SettingsPanel = React.memo(function SettingsPanel({
   discordRpcEnabled,
   setDiscordRpcEnabled,
   discordStatus,
+  discordApplicationId = "1546196215153041448",
+  setDiscordApplicationId,
   discordTimeDisplay: propDiscordTimeDisplay,
   setDiscordTimeDisplay: propSetDiscordTimeDisplay,
   discordCustomBtn: propDiscordCustomBtn,
@@ -228,6 +236,10 @@ export const SettingsPanel = React.memo(function SettingsPanel({
   autoCheckUpdates,
   setAutoCheckUpdates,
   isCheckingUpdate,
+  appUpdateState,
+  appUpdateBusy = false,
+  downloadAppUpdate,
+  installAppUpdate,
   handleCheckUpdate,
   performanceMode,
   setPerformanceMode,
@@ -713,6 +725,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
       "Discord Integration",
       "Discord Rich Presence",
       "Discord RPC",
+      "Developer Application ID",
       "Discord",
       "Playing status",
       "Activity",
@@ -3320,6 +3333,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                     "Discord Integration",
                     "Discord Rich Presence",
                     "Discord RPC",
+                    "Developer Application ID",
                     "Discord",
                     "Playing status",
                     "Activity",
@@ -3408,6 +3422,26 @@ export const SettingsPanel = React.memo(function SettingsPanel({
 
                     {discordRpcEnabled && (
                       <>
+                        <form style={{ padding: "14px 16px", display: "grid", gap: 8, borderBottom: "1px solid var(--v-bdr)" }}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const value = String(new FormData(event.currentTarget).get("applicationId") || "").trim();
+                            setDiscordApplicationId?.(value || "1546196215153041448");
+                          }}>
+                          <label htmlFor="discord-application-id">Developer Application ID</label>
+                          <input key={discordApplicationId} id="discord-application-id" name="applicationId"
+                            type="text" inputMode="numeric" pattern="[0-9]{17,20}" maxLength={20}
+                            defaultValue={discordApplicationId} placeholder="1546196215153041448"
+                            style={{ padding: "9px 12px", color: "var(--v-fg)", background: "var(--v-bg)", border: "1px solid var(--v-bdr)", borderRadius: 8 }} />
+                          <small style={{ color: "var(--v-fg3)" }}>Use the Application ID from your Discord Developer Portal. Custom applications need artwork assets named riceura and icon.</small>
+                          <div style={{ display: "flex", gap: 12 }}>
+                            <button type="submit">Save Application ID</button>
+                            <button type="button" onClick={(event) => {
+                              event.currentTarget.form?.reset();
+                              setDiscordApplicationId?.("1546196215153041448");
+                            }}>Reset to default</button>
+                          </div>
+                        </form>
                         <div
                           style={{
                             padding: "14px 16px",
@@ -5200,9 +5234,15 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 lineHeight: 1.4,
                               }}
                             >
-                              A new version of Phoebeats is ready to download.
-                              Features and stability updates await.
+                              {appUpdateState?.message || "A new version of Phoebeats is ready to download."}
                             </p>
+                            {["downloading", "verifying"].includes(appUpdateState?.phase || "") && (
+                              <div role="status" style={{ marginBottom: 12 }}>
+                                <progress aria-label="Update download progress" max={100}
+                                  value={appUpdateState?.percent ?? undefined} style={{ width: "100%" }} />
+                                {appUpdateState?.percent != null && <span>{appUpdateState.percent}%</span>}
+                              </div>
+                            )}
                             <div
                               style={{
                                 display: "flex",
@@ -5212,11 +5252,8 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                             >
                               <button
                                 data-pb-primary="true"
-                                onClick={() =>
-                                  openUrl(
-                                    "https://github.com/rry0ku/veluna/releases/latest",
-                                  )
-                                }
+                                onClick={appUpdateState?.phase === "ready" ? installAppUpdate : downloadAppUpdate}
+                                disabled={appUpdateBusy}
                                 style={{
                                   display: "inline-flex",
                                   alignItems: "center",
@@ -5240,7 +5277,11 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 }}
                               >
                                 <Download size={13} strokeWidth={2.4} />{" "}
-                                Download v{updateAvailable}
+                                {appUpdateState?.phase === "ready" ? "Restart and install" :
+                                  appUpdateState?.phase === "installing" ? "Installing…" :
+                                  appUpdateState?.phase === "verifying" ? "Verifying…" :
+                                  appUpdateState?.phase === "downloading" ? "Downloading…" :
+                                  `Download update v${updateAvailable}`}
                               </button>
                             </div>
                           </div>
@@ -5253,7 +5294,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 color: "var(--v-fg)",
                               }}
                             >
-                              You're up to date
+                              {appUpdateState?.phase === "current" ? "You're up to date" : "App updates"}
                             </div>
                             <p
                               style={{
@@ -5262,34 +5303,9 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                                 margin: "4px 0 8px 0",
                               }}
                             >
-                              Phoebeats v{appVersion} is currently the latest
-                              version.
+                              {appUpdateState?.message || "Check for updates to see if a new version is available."}
                             </p>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                openUrl("https://github.com/rry0ku/veluna");
-                              }}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "5px",
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                color: "var(--v-accent)",
-                                textDecoration: "none",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.textDecoration =
-                                  "underline")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.textDecoration = "none")
-                              }
-                            >
-                              <ExternalLink size={12} /> Visit GitHub Repository
-                            </a>
+
                           </div>
                         )}
                       </div>
@@ -5369,7 +5385,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                             fontFamily: "monospace",
                           }}
                         >
-                          v{updateAvailable || appVersion}
+                          {updateAvailable ? `v${updateAvailable}` : appUpdateState?.phase === "current" ? `v${appVersion}` : "Not checked"}
                         </span>
                       </div>
 
@@ -5502,7 +5518,7 @@ export const SettingsPanel = React.memo(function SettingsPanel({
                       </div>
                       <button
                         onClick={handleCheckUpdate}
-                        disabled={isCheckingUpdate}
+                        disabled={appUpdateBusy || appUpdateState?.phase === "ready" || isCheckingUpdate}
                         style={{
                           padding: "7px 16px",
                           borderRadius: "18px",

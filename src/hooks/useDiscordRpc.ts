@@ -5,6 +5,7 @@ import { cleanArtist } from "../utils";
 import { getPlaybackProgress } from "./playbackProgress";
 
 interface DiscordOptions {
+  applicationId?: string;
   enabled: boolean;
   playing: boolean;
   track: Track | null;
@@ -40,6 +41,7 @@ export function useDiscordRpc(options: DiscordOptions) {
       const startTimestamp = Math.floor(now / 1000 - progress / speed);
       const key = active
         ? JSON.stringify([
+            o.applicationId,
             o.track!.url,
             o.track!.title,
             o.track!.artist,
@@ -75,6 +77,7 @@ export function useDiscordRpc(options: DiscordOptions) {
           const webUrl = (url: string) =>
             /^https?:\/\//i.test(url) ? url : null;
           await invoke("update_discord_rpc", {
+            applicationId: o.applicationId?.trim() || "1546196215153041448",
             title: track.title,
             artist: cleanArtist(track.artist) || null,
             coverUrl: webUrl(track.cover || ""),

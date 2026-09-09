@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Phoebeats",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "identifier": "com.phoebeats.player",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -26,6 +26,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": ["deb", "rpm", "nsis"],
     "icon": [
@@ -58,6 +59,13 @@
         "displayLanguageSelector": false,
         "installMode": "currentUser"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU0NEM1OEFDRkI1RUQ4MjQKUldRazJGNzdyRmhNVkh5bnBoS0t5cUtoTEt5bE1lZ0k0TVBEN0dYNk5aQmpTaFhYb2Nxck1ueFEK",
+      "endpoints": ["https://github.com/Moemen-Abdelnaby/Phoebeats/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
     }
   }
 }

@@ -1,4 +1,5 @@
 mod tray;
+mod app_updates;
 mod cache;
 mod metadata;
 mod db;
@@ -3704,31 +3705,6 @@ fn get_app_version() -> String {
 }
 
 #[tauri::command]
-async fn check_for_update() -> Result<Option<String>, String> {
-    let current = env!("CARGO_PKG_VERSION");
-    let client = create_http_client(8000);
-
-    let resp = client
-        .get("https://api.github.com/repos/rry0ku/veluna/releases/latest")
-        .header("User-Agent", "phoebeats")
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    let latest = json["tag_name"]
-        .as_str()
-        .unwrap_or("")
-        .trim_start_matches('v');
-
-    if latest.is_empty() || latest == current {
-        Ok(None)
-    } else {
-        Ok(Some(latest.to_string()))
-    }
-}
-
-#[tauri::command]
 async fn set_mpris_metadata(
     title: String,
     artist: String,
@@ -3933,6 +3909,7 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
 }
 
 static DISCORD_CLIENT: std::sync::OnceLock<Mutex<Option<DiscordIpcClient>>> = std::sync::OnceLock::new();
+static DISCORD_APPLICATION_ID: std::sync::OnceLock<Mutex<String>> = std::sync::OnceLock::new();
 
 fn get_discord_client() -> &'static Mutex<Option<DiscordIpcClient>> {
     DISCORD_CLIENT.get_or_init(|| Mutex::new(None))
@@ -4053,6 +4030,7 @@ fn watch_download_folder(app: tauri::AppHandle, path: String) -> Result<(), Stri
 
 #[tauri::command]
 async fn update_discord_rpc(
+    application_id: Option<String>,
     title: String,
     artist: Option<String>,
     cover_url: Option<String>,
@@ -4066,8 +4044,22 @@ async fn update_discord_rpc(
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let mut client_lock = get_discord_client().lock().map_err(|e| e.to_string())?;
+        let requested_id = application_id.as_deref().unwrap_or("").trim();
+        let requested_id = if requested_id.is_empty() { "1546196215153041448" } else { requested_id };
+        if !(17..=20).contains(&requested_id.len()) || !requested_id.bytes().all(|b| b.is_ascii_digit()) {
+            return Err("Discord Application ID must contain 17 to 20 digits".to_string());
+        }
+        let mut active_id = DISCORD_APPLICATION_ID.get_or_init(|| Mutex::new(String::new()))
+            .lock().map_err(|e| e.to_string())?;
+        if active_id.as_str() != requested_id {
+            if let Some(mut old) = client_lock.take() {
+                let _ = old.clear_activity();
+                let _ = old.close();
+            }
+            *active_id = requested_id.to_string();
+        }
         if client_lock.is_none() {
-            let mut client = DiscordIpcClient::new("1546196215153041448");
+            let mut client = DiscordIpcClient::new(requested_id);
             client.connect().map_err(|e| format!("Discord desktop connection failed: {e}"))?;
             *client_lock = Some(client);
         }
@@ -4305,6 +4297,8 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(app_updates::UpdateState::default())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -4355,7 +4349,9 @@ fn main() {
             find_missing_files,
             ping,
             get_app_version,
-            check_for_update,
+            app_updates::check_for_update,
+            app_updates::download_app_update,
+            app_updates::install_app_update,
             set_mpris_metadata,
             update_mpris_playback,
             get_local_track_cover,
