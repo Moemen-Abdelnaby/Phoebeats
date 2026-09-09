@@ -20,13 +20,13 @@ test("release preflight rejects missing signing secrets and mismatched versions"
   assert.throws(() => run({ RELEASE_TAG: "v0.1.6", TAURI_SIGNING_PRIVATE_KEY: "test" }), /Release tag/);
   assert.doesNotThrow(() => run({ RELEASE_TAG: "v0.1.7", TAURI_SIGNING_PRIVATE_KEY: "test" }));
 });
-test("publishing requires signed assets for every platform and matching version", () => {
+test("publishing accepts Windows-only updates and requires a signature and matching version", () => {
   const manifest = { version: "0.1.7", platforms: {} };
   const run = () => validate("scripts/check-update-manifest.cjs", { "manifest.json": JSON.stringify(manifest) }, { RELEASE_TAG: "v0.1.7" });
   assert.throws(run, /Missing signed update/);
-  for (const key of ["windows-x86_64-nsis", "linux-x86_64-deb", "linux-x86_64-rpm"]) manifest.platforms[key] = { signature: "signed", url: "https://example.com/installer" };
+  manifest.platforms["windows-x86_64-nsis"] = { signature: "signed", url: "https://example.com/installer" };
   assert.doesNotThrow(run);
-  manifest.platforms["linux-x86_64-deb"].signature = "";
+  manifest.platforms["windows-x86_64-nsis"].signature = "";
   assert.throws(run, /Missing signed update/);
   manifest.version = "0.1.8";
   assert.throws(run, /does not match/);

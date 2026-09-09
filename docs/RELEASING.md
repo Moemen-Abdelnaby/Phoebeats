@@ -31,12 +31,10 @@ ensure the configured public key matches. Do not commit the private key.
 3. Run the frontend tests/build and Rust check, commit and push.
 4. Create and push the matching version tag (for example `v0.1.7`).
 
-The Release workflow signs Windows NSIS and Linux Deb/Rpm installers, merges their
-entries into `latest.json`, verifies every supported platform is present, and
-publishes the release only after both builds succeed. Failed builds leave a draft.
-Manual workflow runs require an existing version tag. Arch packages remain
-available as ordinary downloads; update Arch installations through their package
-manager. Native Linux package updates may require an administrator prompt.
+CI and release builds target Windows only. The Release workflow signs the Windows
+NSIS installer, uploads it with `latest.json` and `binaries.zip`, verifies the signed
+Windows update entry, and publishes after the Windows build succeeds. Failed
+builds leave a draft. Manual workflow runs require an existing version tag.
 
 Existing installations need to install the first updater-enabled release manually
 once. Later releases appear in Settings → Updates. The user downloads first, then
