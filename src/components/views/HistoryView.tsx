@@ -15,6 +15,7 @@ import {
 import { Track, HistoryItem, CtxMenu } from "../../types";
 import { getTrackGradient, cleanArtist, parseArtistParts } from "../../utils";
 import { VirtualTrackList } from "../VirtualTrackList";
+import { recencyWeight } from "../../utils/playbackOrder";
 
 interface HistoryViewProps {
   playbackHistory: HistoryItem[];
@@ -554,9 +555,17 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(
 
     const handleShuffle = useCallback(() => {
       if (historyTracks.length === 0) return;
-      const shuffled = [...historyTracks].sort(() => Math.random() - 0.5);
+      const now = Date.now();
+      // Weighted random order without replacement, using each song's last listen.
+      const shuffled = filteredHistory
+        .map((item) => ({
+          track: item.track,
+          key: -Math.log(1 - Math.random()) / recencyWeight(Date.parse(item.playedAt), now),
+        }))
+        .sort((a, b) => a.key - b.key)
+        .map((item) => item.track);
       handlePlayInContext(shuffled[0], shuffled);
-    }, [historyTracks, handlePlayInContext]);
+    }, [historyTracks, filteredHistory, handlePlayInContext]);
 
     const handlePromptClear = useCallback(() => {
       if (uniqueHistory.length === 0) return;

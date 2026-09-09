@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Track, LocalTrack, RepeatMode } from "../types";
+import { Track, LocalTrack, RepeatMode, HistoryItem } from "../types";
 import { publishPlaybackProgress } from "./playbackProgress";
 import { nextPlaybackIndex } from "../utils/playbackOrder";
 import { loadLS, saveLS, parseDurationToSeconds } from "../utils";
@@ -17,6 +17,7 @@ interface UseAudioPlayerProps {
   setQueue: React.Dispatch<React.SetStateAction<Track[]>>;
   queueRef?: React.MutableRefObject<Track[]>;
   playHistory: Track[];
+  playbackHistory?: HistoryItem[];
   setPlayHistory: React.Dispatch<React.SetStateAction<Track[]>>;
   setQuickPicks: React.Dispatch<React.SetStateAction<Track[]>>;
   onTrackPlayed?: (track: Track) => void;
@@ -36,6 +37,7 @@ export function useAudioPlayer({
   setQueue,
   queueRef: externalQueueRef,
   playHistory,
+  playbackHistory,
   setPlayHistory,
   setQuickPicks,
   onTrackPlayed,
@@ -43,6 +45,18 @@ export function useAudioPlayer({
   showToast,
   setLyricsData,
 }: UseAudioPlayerProps) {
+  const lastPlayedRef = useRef(new Map<string, number>());
+  useEffect(() => {
+    const dates = new Map<string, number>();
+    for (const item of playbackHistory || []) {
+      if (!item?.track?.url) continue;
+      const time = Date.parse(item.playedAt);
+      if (Number.isFinite(time)) {
+        dates.set(item.track.url, Math.max(dates.get(item.track.url) || 0, time));
+      }
+    }
+    lastPlayedRef.current = dates;
+  }, [playbackHistory]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(() =>
     loadLS("vg_lastTrack", null),
   );
@@ -178,6 +192,7 @@ export function useAudioPlayer({
 
       setCurrentTrack(track);
       currentTrackRef.current = track;
+      lastPlayedRef.current.set(track.url, Date.now());
       setCurrentLocalPath(null);
       currentLocalPathRef.current = null;
       setLoadingTrackUrlSync(track.url);
@@ -321,6 +336,7 @@ export function useAudioPlayer({
       };
       setCurrentTrack(synth);
       currentTrackRef.current = synth;
+      lastPlayedRef.current.set(synth.url, Date.now());
       if (onTrackPlayed) onTrackPlayed(synth);
       setPlayHistory((prev) =>
         [synth, ...prev.filter((t) => t.url !== synth.url)].slice(0, 50),
@@ -462,7 +478,8 @@ export function useAudioPlayer({
     }
 
     if (ctx) {
-      const next = nextPlaybackIndex(ctx.tracks.length, ctx.index, repeat, shuffle);
+      const next = nextPlaybackIndex(ctx.tracks.length, ctx.index, repeat, shuffle,
+        Math.random, ctx.tracks.map((t) => lastPlayedRef.current.get(t.url) || 0));
       if (next !== null) {
         playlistContextRef.current = { ...ctx, index: next };
         void handlePlayTrack(ctx.tracks[next], true);
@@ -470,7 +487,8 @@ export function useAudioPlayer({
       }
     } else if (folderPlayback) {
       const list = localTracksListRef.current;
-      const next = nextPlaybackIndex(list.length, localTrackIndexRef.current, repeat, shuffle);
+      const next = nextPlaybackIndex(list.length, localTrackIndexRef.current, repeat, shuffle,
+        Math.random, list.map((t) => lastPlayedRef.current.get(`local://${t.path}`) || 0));
       if (next !== null) {
         localTrackIndexRef.current = next;
         void handlePlayLocalTrack(list[next], list, next);
@@ -496,9 +514,8 @@ export function useAudioPlayer({
       const idx = localTrackIndexRef.current;
       let nextIdx: number;
       if (shuffle) {
-        do {
-          nextIdx = Math.floor(Math.random() * list.length);
-        } while (nextIdx === idx && list.length > 1);
+        nextIdx = nextPlaybackIndex(list.length, idx, "all", true,
+          Math.random, list.map((t) => lastPlayedRef.current.get(`local://${t.path}`) || 0)) ?? list.length;
       } else {
         nextIdx = idx + 1;
       }
@@ -525,9 +542,8 @@ export function useAudioPlayer({
     if (ctx && ctx.tracks.length > 1) {
       let nextIdx: number;
       if (shuffle) {
-        do {
-          nextIdx = Math.floor(Math.random() * ctx.tracks.length);
-        } while (nextIdx === ctx.index && ctx.tracks.length > 1);
+        nextIdx = nextPlaybackIndex(ctx.tracks.length, ctx.index, "all", true,
+          Math.random, ctx.tracks.map((t) => lastPlayedRef.current.get(t.url) || 0)) ?? ctx.tracks.length;
       } else {
         nextIdx = ctx.index + 1;
       }

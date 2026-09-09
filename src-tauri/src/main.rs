@@ -1312,7 +1312,17 @@ async fn import_youtube_playlist(url: String) -> Result<String, String> {
             .spawn()
             .map_err(|e| format!("yt-dlp not found: {}", e))?;
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
+        // Drain both pipes while yt-dlp runs so large playlists cannot fill them
+        // and block the process before it exits.
+        let stdout_pipe = child.stdout.take().ok_or("Missing playlist output")?;
+        let stderr_pipe = child.stderr.take().ok_or("Missing playlist errors")?;
+        let read_pipe = |mut pipe: Box<dyn std::io::Read + Send>| {
+            let mut bytes = Vec::new();
+            pipe.read_to_end(&mut bytes).map(|_| bytes)
+        };
+        let stdout_reader = std::thread::spawn(move || read_pipe(Box::new(stdout_pipe)));
+        let stderr_reader = std::thread::spawn(move || read_pipe(Box::new(stderr_pipe)));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(180);
         loop {
             match child.try_wait() {
                 Ok(Some(_)) => break,
@@ -1327,10 +1337,13 @@ async fn import_youtube_playlist(url: String) -> Result<String, String> {
                 Err(e) => return Err(e.to_string()),
             }
         }
-        let out = child.wait_with_output().map_err(|e| e.to_string())?;
-        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+        let stdout_bytes = stdout_reader.join().map_err(|_| "Playlist output reader failed")?
+            .map_err(|e| e.to_string())?;
+        let stderr_bytes = stderr_reader.join().map_err(|_| "Playlist error reader failed")?
+            .map_err(|e| e.to_string())?;
+        let stdout = String::from_utf8_lossy(&stdout_bytes).to_string();
         if stdout.trim().is_empty() {
-            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
             return Err(if stderr.trim().is_empty() { "No tracks found. Is this a public playlist?".to_string() } else { stderr });
         }
         Ok(stdout)
@@ -2335,6 +2348,18 @@ struct DownloadProgressPayload {
 }
 
 #[tauri::command]
+async fn resolve_download_folder(app_handle: tauri::AppHandle, path: String) -> Result<String, String> {
+    let legacy = path.replace('\\', "/").trim_end_matches('/').eq_ignore_ascii_case("D:/songs");
+    if path == "~/Music/Phoebeats" || (legacy && !std::path::Path::new("D:/").is_dir()) {
+        let music = app_handle.path().audio_dir()
+            .or_else(|_| app_handle.path().home_dir().map(|home| home.join("Music")))
+            .map_err(|e| e.to_string())?;
+        return Ok(music.join("Phoebeats").to_string_lossy().into_owned());
+    }
+    Ok(path)
+}
+
+#[tauri::command]
 async fn download_song(
     app_handle: tauri::AppHandle,
     url: String,
@@ -2346,9 +2371,9 @@ async fn download_song(
     use std::process::{Command, Stdio};
     use std::io::{BufRead, BufReader};
 
-    let resolved_path = expand_tilde(&path);
+    let resolved_path = expand_tilde(&resolve_download_folder(app_handle.clone(), path).await?);
     let target_dir = std::path::PathBuf::from(&resolved_path);
-    std::fs::create_dir_all(&target_dir).map_err(|e| format!("Cannot create download folder: {e}"))?;
+    std::fs::create_dir_all(&target_dir).map_err(|e| format!("Cannot create download folder '{}': {e}. Choose an accessible folder in Settings.", target_dir.display()))?;
     let fmt = format.as_deref().unwrap_or("mp3");
     let do_embed = embed_thumbnail.unwrap_or(true);
     let audio_format = match fmt {
@@ -4113,9 +4138,6 @@ async fn update_discord_rpc(
                     }
                 }
             }
-            if buttons.len() < 2 {
-                buttons.push(activity::Button::new("Download Phoebeats", "https://github.com/rry0ku/veluna/releases/"));
-            }
             act = act.buttons(buttons);
 
             if let Err(error) = client.set_activity(act) {
@@ -4329,6 +4351,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            resolve_download_folder,
             find_missing_files,
             ping,
             get_app_version,

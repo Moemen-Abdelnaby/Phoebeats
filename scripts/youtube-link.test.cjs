@@ -11,6 +11,14 @@ vm.runInNewContext(
   context,
 );
 const normalize = context.exports.normalizeYoutubeLink;
+test("playlist links accept playlist and watch URLs but reject unsafe hosts", () => {
+  const playlist = context.exports.normalizeYoutubePlaylistLink;
+  assert.equal(playlist("https://music.youtube.com/watch?v=abcdefghijk&list=PL123"), "https://www.youtube.com/playlist?list=PL123");
+  assert.equal(playlist("https://www.youtube.com/playlist?list=PL123"), "https://www.youtube.com/playlist?list=PL123");
+  for (const url of ["https://youtube.com.evil.test/playlist?list=PL123", "file:///playlist?list=PL123", "https://youtube.com/watch?v=abcdefghijk", "https://user:pass@youtube.com/playlist?list=PL123"]) {
+    assert.equal(playlist(url), null);
+  }
+});
 test("video URLs normalize and discard playlist parameters", () => {
   for (const link of [
     "https://youtu.be/abcdefghijk?si=test",

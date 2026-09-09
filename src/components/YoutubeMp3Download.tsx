@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { normalizeYoutubeLink } from "../utils/youtubeLink";
+import { normalizeYoutubeLink, normalizeYoutubePlaylistLink } from "../utils/youtubeLink";
 type Job = {
   id: string;
   url: string;
@@ -17,6 +17,42 @@ export function YoutubeMp3Download({ folder, progress, onDownloaded }: Props) {
   const [links, setLinks] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [message, setMessage] = useState("");
+  const [playlistLink, setPlaylistLink] = useState("");
+  const [loadingPlaylist, setLoadingPlaylist] = useState(false);
+  const playlistLoadingRef = useRef(false);
+  const queuePlaylist = async () => {
+    if (playlistLoadingRef.current) return;
+    if (!("__TAURI_INTERNALS__" in window)) {
+      setMessage("Open the Phoebeats desktop app to download.");
+      return;
+    }
+    const url = normalizeYoutubePlaylistLink(playlistLink);
+    if (!url || !folder) {
+      setMessage("Enter a YouTube playlist link and choose a download folder.");
+      return;
+    }
+    playlistLoadingRef.current = true;
+    setLoadingPlaylist(true);
+    setMessage("Loading playlist…");
+    try {
+      const result = await invoke<string>("import_youtube_playlist", { url });
+      const urls = [...new Set(result.split(/\r?\n/)
+        .map((line) => line.split("====")[0].trim())
+        .filter((id) => /^[A-Za-z0-9_-]{11}$/.test(id))
+        .map((id) => `https://www.youtube.com/watch?v=${id}`))];
+      if (!urls.length) throw new Error("No available videos found in this playlist.");
+      setJobs((prev) => [...prev, ...urls
+        .filter((video) => !prev.some((j) => j.url === video && ["queued", "downloading"].includes(j.status)))
+        .map((video) => ({ id: crypto.randomUUID(), url: video, folder, status: "queued" as const }))]);
+      setPlaylistLink("");
+      setMessage(`Playlist added to queue (${urls.length} videos found). Videos already queued are skipped; unavailable videos may be skipped or fail.`);
+    } catch (error) {
+      setMessage(`Could not load playlist: ${String(error)}`);
+    } finally {
+      playlistLoadingRef.current = false;
+      setLoadingPlaylist(false);
+    }
+  };
   const running = useRef<string | null>(null);
   const completed = useRef(onDownloaded);
   completed.current = onDownloaded;
@@ -144,6 +180,15 @@ export function YoutubeMp3Download({ folder, progress, onDownloaded }: Props) {
         </small>
       </form>
       <p role="status">{message}</p>
+      <form onSubmit={(e) => { e.preventDefault(); void queuePlaylist(); }}>
+        <label htmlFor="pb-youtube-playlist">Download an entire YouTube playlist</label>
+        <input id="pb-youtube-playlist" type="url" required value={playlistLink}
+          placeholder="https://www.youtube.com/playlist?list=…"
+          onChange={(e) => setPlaylistLink(e.target.value)} />
+        <button type="submit" disabled={loadingPlaylist}>
+          {loadingPlaylist ? "Loading playlist…" : "Queue entire playlist as MP3"}
+        </button>
+      </form>
       <div className="pb-download-jobs">
         {jobs.map((job) => (
           <div key={job.id} data-status={job.status}>

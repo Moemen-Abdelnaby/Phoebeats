@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const ts = require("typescript");
 const flush = () => new Promise((resolve) => setImmediate(resolve));
-function harness() {
+function harness(playlistResult = "") {
   let index = 0,
     uuid = 0,
     tree;
@@ -50,6 +50,7 @@ function harness() {
         return {
           normalizeYoutubeLink: (value) =>
             value.startsWith("https://youtu.be/") ? value : null,
+          normalizeYoutubePlaylistLink: (value) => value.startsWith("https://www.youtube.com/playlist?list=") ? value : null,
         };
       if (name === "@tauri-apps/api/core")
         return {
@@ -58,7 +59,9 @@ function harness() {
               ? new Promise((resolve, reject) =>
                   downloads.push({ args, resolve, reject }),
                 )
-              : Promise.resolve(),
+              : command === "import_youtube_playlist"
+                ? (playlistResult instanceof Error ? Promise.reject(playlistResult) : Promise.resolve(playlistResult))
+                : Promise.resolve(),
         };
       throw Error(name);
     },
@@ -114,6 +117,15 @@ function harness() {
     render,
     nodes,
     add,
+    async addPlaylist(link) {
+      render();
+      nodes().find((n) => n.props?.id === "pb-youtube-playlist").props.onChange({ target: { value: link } });
+      render();
+      nodes().filter((n) => n.type === "form")[1].props.onSubmit({ preventDefault() {} });
+      await flush();
+      render();
+      render();
+    },
     async settle() {
       await flush();
       render();
@@ -135,6 +147,28 @@ test("queue runs sequentially, deduplicates and captures destination", async () 
   h.downloads[1].resolve();
   await h.settle();
   assert.equal(h.downloads.length, 2);
+});
+
+test("entire playlist queues distinct videos sequentially in the selected folder", async () => {
+  const h = harness("abcdefghijk====First\nabcdefghijk====Duplicate\ninvalid====Skip\n12345678901====Second");
+  await h.addPlaylist("https://www.youtube.com/playlist?list=PL123");
+  assert.equal(h.downloads.length, 1);
+  assert.equal(h.downloads[0].args.url, "https://www.youtube.com/watch?v=abcdefghijk");
+  assert.equal(h.downloads[0].args.path, "D:\\songs");
+  h.downloads[0].resolve();
+  await h.settle();
+  assert.equal(h.downloads.length, 2);
+  assert.equal(h.downloads[1].args.url, "https://www.youtube.com/watch?v=12345678901");
+  h.downloads[1].resolve();
+  await h.settle();
+  assert.equal(h.downloads.length, 2);
+});
+
+test("playlist loading failures leave the queue untouched and show an error", async () => {
+  const h = harness(Error("Private playlist"));
+  await h.addPlaylist("https://www.youtube.com/playlist?list=PL123");
+  assert.equal(h.downloads.length, 0);
+  assert.match(h.nodes().find((n) => n.props?.role === "status").props.children, /Private playlist/);
 });
 test("failed jobs can be retried and queued jobs cancelled", async () => {
   const h = harness();

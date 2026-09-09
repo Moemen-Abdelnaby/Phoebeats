@@ -1,3 +1,16 @@
+export function normalizeYoutubePlaylistLink(input: string): string | null {
+  try {
+    const url = new URL(input.trim());
+    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password ||
+      !["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"].includes(url.hostname)) return null;
+    const id = url.searchParams.get("list");
+    return id && /^[A-Za-z0-9_-]+$/.test(id)
+      ? `https://www.youtube.com/playlist?list=${id}` : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Accept a single video, never a playlist or an arbitrary downloader URL. */
 export function normalizeYoutubeLink(input: string): string | null {
   try {

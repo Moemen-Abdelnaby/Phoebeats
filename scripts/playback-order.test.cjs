@@ -23,6 +23,32 @@ test("repeat modes and shuffle retain their meaning", () => {
   assert.equal(next(4, 1, "off", true, () => 0.99), 3);
 });
 
+test("shuffle prioritizes unplayed and long-unheard songs over recent listens", () => {
+  const now = 1_800_000_000_000;
+  const dates = [now, now, now - 30 * 86400000, 0];
+  const counts = [0, 0, 0, 0];
+  for (let i = 0; i < 1000; i++) {
+    counts[next(4, 0, "off", true, () => (i + 0.5) / 1000, dates, now)]++;
+  }
+  assert.equal(counts[0], 0);
+  assert.ok(counts[1] > 0);
+  assert.ok(counts[2] > counts[1] * 4);
+  assert.ok(counts[3] > counts[2]);
+  assert.equal(next(4, 0, "one", true, () => 0.5, dates, now), 0);
+  assert.equal(next(4, 0, "off", false, () => 0.5, dates, now), 1);
+});
+
+test("shuffle weight increases with time since last play and handles missing dates", () => {
+  const weight = context.exports.recencyWeight;
+  const now = 1_800_000_000_000;
+  assert.ok(weight(now, now) < weight(now - 86400000, now));
+  assert.ok(weight(now - 86400000, now) < weight(now - 30 * 86400000, now));
+  assert.ok(weight(now - 30 * 86400000, now) < weight(0, now));
+  assert.equal(weight(NaN, now), weight(0, now));
+  assert.equal(weight(undefined, now), weight(0, now));
+  assert.equal(weight(now + 86400000, now), weight(now, now));
+});
+
 test("local playlist clicks keep context through track-end and next/back controls", async () => {
   const effects = [], listeners = {}, calls = [];
   const noop = () => {};
@@ -54,6 +80,7 @@ test("local playlist clicks keep context through track-end and next/back control
     volume: 50, setVolume: noop, previousVolume: 50, setPreviousVolume: noop,
     eq: {bass: 0, mid: 0, treble: 0}, queue: [], queueRef, setQueue: noop,
     playHistory: [], setPlayHistory: noop, setQuickPicks: noop, showToast: noop,
+    playbackHistory: [null, {}, { track: { url: "old-song" }, playedAt: "invalid" }],
   });
   effects.forEach(fn => fn());
   const flush = () => new Promise(resolve => setImmediate(resolve));

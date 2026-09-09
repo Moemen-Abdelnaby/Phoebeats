@@ -193,13 +193,16 @@ export function App() {
   );
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [downloadPath, setDownloadPath] = useState<string>(() => {
-    if (!loadLS("pb_songs_folder_default", false)) {
-      saveLS("pb_songs_folder_default", true);
-      saveLS("vg_dlPath", "D:\\songs");
-      return "D:\\songs";
-    }
-    return loadLS("vg_dlPath", "D:\\songs");
+    return loadLS("vg_dlPath", "~/Music/Phoebeats");
   });
+  useEffect(() => {
+    let cancelled = false;
+    const saved = loadLS("vg_dlPath", "~/Music/Phoebeats");
+    invoke<string>("resolve_download_folder", { path: saved }).then((resolved) => {
+      if (!cancelled) setDownloadPath((current) => current === saved ? resolved : current);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [backupPath, setBackupPathState] = useState<string>(() =>
     loadLS("vg_backupPath", ""),
   );
@@ -359,6 +362,7 @@ export function App() {
     setQueue,
     queueRef,
     playHistory,
+    playbackHistory,
     setPlayHistory,
     setQuickPicks,
     onTrackPlayed: recordTrackPlayed,
