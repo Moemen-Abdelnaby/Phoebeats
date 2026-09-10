@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { Track, RepeatMode } from '../types';
 import { loadLS, saveLS } from '../utils';
 import { connectJamBridge, JamAction } from '../services/jamBridge';
@@ -164,11 +164,16 @@ export function useJam(player: Player, toast: (message: string) => void) {
   async function start(mode: JamMode, name: string) {
     if (active.current || connecting.current) return;
     connecting.current = true; setBusy(true);
-    setStatus(mode === 'internet' ? 'Preparing Internet Jam… First use downloads the connection helper.' : 'Starting Local Jam…');
+    setStatus(mode === 'internet' ? 'Preparing Internet Jam...' : 'Starting Local Jam…');
     let result: Connection | undefined;
     try {
       name = saveNickname(name);
-      result = await invoke<Connection>('jam_host_start', { mode, name: name.trim() });
+      const onProgress = new Channel<string>();
+      let receiving = true;
+      onProgress.onmessage = message => { if (receiving) setStatus(message); };
+      try {
+        result = await invoke<Connection>('jam_host_start', { mode, name: name.trim(), onProgress });
+      } finally { receiving = false; }
       await attach(result,result.server!,name,mode);
     } catch (error) {
       if (result?.hostId) { detach(); await invoke('jam_host_stop',{hostId:result.hostId}).catch(() => {}); }
