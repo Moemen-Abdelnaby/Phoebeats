@@ -5,6 +5,7 @@ import { cleanArtist } from "../utils";
 import { getPlaybackProgress } from "./playbackProgress";
 
 interface DiscordOptions {
+  jamPartnerName?: string;
   applicationId?: string;
   enabled: boolean;
   playing: boolean;
@@ -36,6 +37,8 @@ export function useDiscordRpc(options: DiscordOptions) {
       const o = latest.current;
       const active = o.enabled && o.playing && o.track;
       const now = Date.now();
+      const partner = Array.from((o.jamPartnerName || "").replace(/[\u0000-\u001f\u007f-\u009f]/g, "").trim()).slice(0, 40).join("");
+      const jamState = partner ? `#Phoebeating with ${partner}` : null;
       const speed = Number.isFinite(o.speed) && o.speed > 0 ? o.speed : 1;
       const progress = Math.max(0, getPlaybackProgress());
       const startTimestamp = Math.floor(now / 1000 - progress / speed);
@@ -53,6 +56,7 @@ export function useDiscordRpc(options: DiscordOptions) {
             o.customButton,
             o.buttonLabel,
             o.buttonUrl,
+            jamState,
           ])
         : "clear";
       if (
@@ -80,6 +84,7 @@ export function useDiscordRpc(options: DiscordOptions) {
             applicationId: o.applicationId?.trim() || "1546196215153041448",
             title: track.title,
             artist: cleanArtist(track.artist) || null,
+            jamState,
             coverUrl: webUrl(track.cover || ""),
             trackUrl: webUrl(track.url),
             startTimestamp,
@@ -104,7 +109,7 @@ export function useDiscordRpc(options: DiscordOptions) {
         if (!disposed)
           setStatus(
             active
-              ? "Connected — sharing your listening activity"
+              ? partner ? `Connected — jamming with ${partner}` : "Connected — sharing your listening activity"
               : o.enabled
                 ? "Paused — listening activity hidden"
                 : "Disabled — listening activity hidden",

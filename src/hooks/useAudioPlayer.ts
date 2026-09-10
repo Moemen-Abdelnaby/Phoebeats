@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Track, LocalTrack, RepeatMode, HistoryItem } from "../types";
 import { publishPlaybackProgress } from "./playbackProgress";
+import { jamAction, isJamActive } from "../services/jamBridge";
 import { nextPlaybackIndex } from "../utils/playbackOrder";
 import { loadLS, saveLS, parseDurationToSeconds } from "../utils";
 
@@ -150,11 +151,11 @@ export function useAudioPlayer({
   }, []);
 
   useEffect(() => {
-    saveLS("vg_shuffle", shuffle);
+    if (!isJamActive()) saveLS("vg_shuffle", shuffle);
   }, [shuffle]);
 
   useEffect(() => {
-    saveLS("vg_repeat", repeatMode);
+    if (!isJamActive()) saveLS("vg_repeat", repeatMode);
     repeatModeRef.current = repeatMode;
   }, [repeatMode]);
 
@@ -167,6 +168,7 @@ export function useAudioPlayer({
   }, []);
 
   const toggleShuffle = useCallback(() => {
+    if (jamAction({ action: 'shuffle' })) return;
     setShuffle((p) => {
       showToast(!p ? "Shuffle on" : "Shuffle off");
       return !p;
@@ -174,6 +176,7 @@ export function useAudioPlayer({
   }, [showToast]);
 
   const cycleRepeat = useCallback(() => {
+    if (jamAction({ action: 'repeat' })) return;
     setRepeatMode((p) => {
       const n: RepeatMode = p === "off" ? "all" : p === "all" ? "one" : "off";
       repeatModeRef.current = n;
@@ -186,7 +189,9 @@ export function useAudioPlayer({
   }, [showToast]);
 
   const handlePlayTrack = useCallback(
-    async (track: Track, fromQueue = false) => {
+    async (track: Track, fromQueue = false, fromJam = false) => {
+      if (!fromJam && jamAction({ action: 'play', tracks: [track], index: 0 })) return;
+      if (fromJam) resumePositionRef.current = null;
       invoke("pause_audio").catch(() => {});
       endDetectedRef.current = false;
 
@@ -232,6 +237,7 @@ export function useAudioPlayer({
 
       try {
         await invoke("play_audio", { url: track.url });
+        if (fromJam) await invoke("pause_audio");
         const resume = resumePositionRef.current;
         resumePositionRef.current = null;
         if (
@@ -243,7 +249,7 @@ export function useAudioPlayer({
         }
         setLoadingTrackUrlSync(null);
         setIsLoadingTrackSync(false);
-        setIsPlayingSync(true);
+        setIsPlayingSync(!fromJam);
         invoke("set_volume", { volume }).catch(() => {});
         invoke("set_playback_speed", { speed: 1 }).catch(() => {});
         invoke("set_equalizer", {
@@ -257,6 +263,7 @@ export function useAudioPlayer({
         setLoadingTrackUrlSync(null);
         setIsLoadingTrackSync(false);
         const errMsg = typeof err === "string" ? err : err?.message || "";
+        if (fromJam) throw err;
         if (
           !errMsg.toLowerCase().includes("superseded") &&
           !errMsg.toLowerCase().includes("abort") &&
@@ -286,6 +293,7 @@ export function useAudioPlayer({
       localList?: LocalTrack[],
       localIndex?: number,
     ) => {
+      if (jamAction({ action: 'play', tracks: (localList || [local]).map(t => ({ id: -1, title: t.title, artist: t.artist || '', duration: t.duration || '0:00', cover: '', url: `local://${t.path}` })), index: localIndex ?? Math.max(0, (localList || [local]).findIndex(t => t.path === local.path)) })) return;
       resumePositionRef.current = null;
       invoke("pause_audio").catch(() => {});
       endDetectedRef.current = false;
@@ -388,6 +396,7 @@ export function useAudioPlayer({
 
   const handlePlayInContext = useCallback(
     (track: Track, contextList: Track[]) => {
+      if (jamAction({ action: 'play', tracks: contextList, index: Math.max(0, contextList.findIndex(t => t.url === track.url)) })) return;
       localTracksListRef.current = [];
       setCurrentLocalPath(null);
       currentLocalPathRef.current = null;
@@ -407,6 +416,7 @@ export function useAudioPlayer({
   );
 
   const togglePlayPause = useCallback(async () => {
+    if (jamAction({ action: 'toggle' })) return;
     if (!currentTrackRef.current) return;
 
     if (!isPlayingRef.current) {
@@ -446,6 +456,7 @@ export function useAudioPlayer({
   }, [volume, previousVolume, setPreviousVolume, setVolume]);
 
   const handleTrackEnd = useCallback(() => {
+    if (jamAction({ action: 'ended' })) return;
     const now = performance.now();
     if (now - lastTrackEndTimeRef.current < 2500) return;
     lastTrackEndTimeRef.current = now;
@@ -504,6 +515,7 @@ export function useAudioPlayer({
   }, [handlePlayTrack, handlePlayLocalTrack, setIsPlayingSync, shuffle, setQueue]);
 
   const handleSkipForward = useCallback(async () => {
+    if (jamAction({ action: 'skip' })) return;
     const track = currentTrackRef.current;
     const isLocal =
       !playlistContextRef.current &&
@@ -568,6 +580,7 @@ export function useAudioPlayer({
   ]);
 
   const handleSkipBack = useCallback(async () => {
+    if (jamAction({ action: 'back' })) return;
     const track = currentTrackRef.current;
     const isLocal = !playlistContextRef.current && track?.url?.startsWith("local://");
 
@@ -807,7 +820,7 @@ export function useAudioPlayer({
     const onUp = async (e: MouseEvent) => {
       if (isDraggingProgressRef.current) {
         const t = updateProgressFromEvent(e.clientX);
-        if (t !== undefined)
+        if (t !== undefined && !jamAction({ action: 'seek', position: t }))
           await invoke("seek_audio", { time: t }).catch(() => {});
         isDraggingProgressRef.current = false;
         setIsDraggingProgress(false);
@@ -856,6 +869,7 @@ export function useAudioPlayer({
       setSleepTimer((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
+          jamAction({ action: 'leave' });
           invoke("pause_audio").catch(() => {});
           setIsPlayingSync(false);
           showToast("Sleep timer expired: Playback stopped");

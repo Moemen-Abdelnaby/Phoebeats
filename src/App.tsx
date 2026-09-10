@@ -47,6 +47,8 @@ import { useLyrics } from "./hooks/useLyrics";
 import { useSearch } from "./hooks/useSearch";
 import { usePlaylists } from "./hooks/usePlaylists";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
+import { useJam } from "./hooks/useJam";
+import { JamPanel } from "./components/JamPanel";
 import { useScrobbler } from "./hooks/useScrobbler";
 
 import { TopBar } from "./components/layout/TopBar";
@@ -338,6 +340,7 @@ export function App() {
     setCurrentTrack,
     currentLocalPath,
     isPlaying,
+    setIsPlaying: setJamPlaying,
     isLoadingTrack,
     loadingTrackUrl,
     trackDurationSeconds,
@@ -377,6 +380,16 @@ export function App() {
     onListeningStep: recordListeningStep,
     showToast,
   });
+
+  const jam = useJam({
+    play: track => handlePlayTrack(track, true, true),
+    setPlaying: setJamPlaying,
+    setShuffle,
+    setRepeat: setRepeatMode,
+    setQueue,
+    getQueue: () => queueRef.current,
+    getPreferences: () => ({ shuffle, repeat: repeatMode }),
+  }, showToast);
 
   const {
     showLyrics,
@@ -758,6 +771,9 @@ export function App() {
   }, [currentTrack, isPlaying]);
 
   const discordStatus = useDiscordRpc({
+    jamPartnerName: jam.memberId
+      ? jam.room?.members.find(member => member.id !== jam.memberId)?.name
+      : undefined,
     applicationId: discordApplicationId,
     enabled: discordRpcEnabled,
     playing: isPlaying,
@@ -2115,6 +2131,7 @@ export function App() {
               }}
             />
           </div>
+          <JamPanel jam={jam} playlists={playlists} setPlaylists={setPlaylists} toast={showToast} downloadOnline={handleDownload} onlineProgress={downloadingTracks} />
           <TopBar
             activeNav={activeNav}
             setActiveNav={setActiveNav}

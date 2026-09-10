@@ -125,6 +125,41 @@ function harness() {
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+test("Jam presence keeps its phrase, follows nicknames, and restores solo activity", async () => {
+  const h = harness();
+  h.render({ jamPartnerName: "Luna" });
+  await flush();
+  assert.equal(h.calls[0].payload.jamState, "#Phoebeating with Luna");
+  assert.equal(h.calls[0].payload.title, "One");
+  assert.equal(h.calls[0].payload.artist, "Artist");
+  h.advance(1000);
+  await flush();
+  assert.equal(h.calls.length, 1);
+  h.advance(19000);
+  await flush();
+  assert.equal(h.calls.at(-1).payload.jamState, "#Phoebeating with Luna");
+  h.render({ jamPartnerName: "Moon" });
+  await flush();
+  assert.equal(h.calls.at(-1).payload.jamState, "#Phoebeating with Moon");
+  h.render({ jamPartnerName: undefined });
+  await flush();
+  assert.equal(h.calls.at(-1).payload.jamState, null);
+  assert.equal(h.calls.at(-1).payload.artist, "Artist");
+});
+
+test("Jam presence respects privacy settings and clears after an in-flight partner update", async () => {
+  const h = harness(), release = h.hold();
+  h.render({ jamPartnerName: "Luna" });
+  h.render({ playing: false });
+  release();
+  await flush();
+  assert.equal(h.calls.at(-1).command, "clear_discord_rpc");
+  h.render({ enabled: false, playing: true, jamPartnerName: "Moon" });
+  await flush();
+  assert.equal(h.calls.at(-1).command, "clear_discord_rpc");
+  assert.match(h.status, /Disabled/);
+});
+
 test("metadata, local track changes, speed and pause", async () => {
   const h = harness();
   h.render();

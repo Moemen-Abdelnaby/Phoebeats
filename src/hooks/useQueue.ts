@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Track } from '../types';
 import { loadLS, saveLS } from '../utils';
+import { jamAction, isJamActive } from '../services/jamBridge';
 
 export function useQueue(showToast?: (msg: string) => void) {
   const [queue, setQueueState] = useState<Track[]>(() => loadLS('vg_queue', []));
@@ -11,14 +12,14 @@ export function useQueue(showToast?: (msg: string) => void) {
 
   useEffect(() => {
     queueRef.current = queue;
-    saveLS('vg_queue', queue);
+    if (!isJamActive()) saveLS('vg_queue', queue);
   }, [queue]);
 
   const setQueue = useCallback((tracksOrUpdater: Track[] | ((prev: Track[]) => Track[])) => {
     setQueueState(prev => {
       const next = typeof tracksOrUpdater === 'function' ? tracksOrUpdater(prev) : tracksOrUpdater;
       queueRef.current = next;
-      saveLS('vg_queue', next);
+      if (!isJamActive()) saveLS('vg_queue', next);
       return next;
     });
   }, []);
@@ -26,6 +27,7 @@ export function useQueue(showToast?: (msg: string) => void) {
   const addToQueue = useCallback((tracks: Track | Track[], silent: boolean = false) => {
     const list = Array.isArray(tracks) ? tracks : [tracks];
     if (!list.length) return;
+    if (jamAction({ action: 'add', tracks: list })) return;
     setQueue(prev => [...prev, ...list]);
     setQueuePulseKey(k => k + 1);
     if (!silent && showToast) {
@@ -34,12 +36,14 @@ export function useQueue(showToast?: (msg: string) => void) {
   }, [setQueue, showToast]);
 
   const playNext = useCallback((track: Track) => {
+    if (jamAction({ action: 'next', tracks: [track] })) return;
     setQueue(prev => [track, ...prev]);
     setQueuePulseKey(k => k + 1);
     if (showToast) showToast('Playing next');
   }, [setQueue, showToast]);
 
   const removeFromQueue = useCallback((indexOrUrl: number | string) => {
+    if (jamAction({ action: 'remove', index: typeof indexOrUrl === 'number' ? indexOrUrl : queueRef.current.findIndex(t => t.url === indexOrUrl) })) return;
     setQueue(prev => {
       if (typeof indexOrUrl === 'number') {
         return prev.filter((_, idx) => idx !== indexOrUrl);
@@ -49,12 +53,14 @@ export function useQueue(showToast?: (msg: string) => void) {
   }, [setQueue]);
 
   const clearQueue = useCallback(() => {
+    if (jamAction({ action: 'clear' })) { setShowClearConfirm(false); return; }
     setQueue([]);
     setShowClearConfirm(false);
     if (showToast) showToast('Queue cleared');
   }, [setQueue, showToast]);
 
   const reorderQueue = useCallback((fromIdx: number, toIdx: number) => {
+    if (jamAction({ action: 'reorder', from: fromIdx, to: toIdx })) return;
     setQueue(prev => {
       if (fromIdx < 0 || fromIdx >= prev.length || toIdx < 0 || toIdx >= prev.length) return prev;
       const next = [...prev];

@@ -1,4 +1,8 @@
 mod tray;
+mod jam;
+mod jam_room;
+mod jam_host;
+mod jam_tunnel;
 mod app_updates;
 mod cache;
 mod metadata;
@@ -4033,6 +4037,7 @@ async fn update_discord_rpc(
     application_id: Option<String>,
     title: String,
     artist: Option<String>,
+    jam_state: Option<String>,
     cover_url: Option<String>,
     track_url: Option<String>,
     start_timestamp: Option<i64>,
@@ -4078,21 +4083,31 @@ async fn update_discord_rpc(
             } else {
                 clean_artist.to_string()
             };
+            let safe_jam: String = jam_state.as_deref().unwrap_or("").trim()
+                .chars().filter(|c| !c.is_control()).take(120).collect();
+            let is_jamming = !safe_jam.is_empty();
 
             let mut act = activity::Activity::new()
                 .details(&safe_title)
                 .activity_type(activity::ActivityType::Listening);
-            if !safe_artist.is_empty() {
+            if is_jamming {
+                act = act.state(&safe_jam);
+            } else if !safe_artist.is_empty() {
                 act = act.state(&safe_artist);
             }
             // Hosted in this Discord application's Rich Presence assets.
             // Keep accepting legacy cover arguments for IPC compatibility.
             let _ = (cover_url, show_cover);
+            let jam_track_text: String = if safe_artist.is_empty() {
+                safe_title.clone()
+            } else {
+                format!("{} — {}", safe_title, safe_artist).chars().take(120).collect()
+            };
             let assets = activity::Assets::new()
                 .large_image("riceura")
-                .large_text("Phoebeats")
+                .large_text(if is_jamming { &jam_track_text } else { "Phoebeats" })
                 .small_image("icon")
-                .small_text("Phoebeats");
+                .small_text(if is_jamming { "Shared listening · Phoebeats Jam" } else { "Phoebeats" });
             act = act.assets(assets);
 
             let t_mode = time_display.as_deref().unwrap_or("remaining");
@@ -4345,6 +4360,12 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            jam::jam_request,
+            jam_host::jam_host_start,
+            jam_host::jam_host_stop,
+            jam_host::jam_host_status,
+            jam::jam_upload,
+            jam::jam_download,
             resolve_download_folder,
             find_missing_files,
             ping,
@@ -4442,6 +4463,7 @@ fn main() {
                     }
                 }
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
+                    jam_host::shutdown();
                     if let Some(mut child) = mpv_process().lock().unwrap().take() {
                         let _ = child.kill();
                         let _ = child.wait();

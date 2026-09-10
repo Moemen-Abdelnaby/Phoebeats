@@ -4,6 +4,8 @@
   "version": "0.1.7",
   "type": "module",
   "scripts": {
+    "jam:server": "node server/jam-server.mjs",
+    "test:jam": "node --test scripts/jam-server.test.mjs scripts/jam-player.test.cjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

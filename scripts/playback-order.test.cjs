@@ -71,6 +71,7 @@ test("local playlist clicks keep context through track-end and next/back control
       if (name === "@tauri-apps/api/event") return {listen: async (name, fn) => {listeners[name] = fn; return noop;}};
       if (name === "../utils") return {loadLS: (_, fallback) => fallback, saveLS: noop, parseDurationToSeconds: () => 60};
       if (name === "./playbackProgress") return {publishPlaybackProgress: noop};
+      if (name === "../services/jamBridge") return {jamAction: () => false, isJamActive: () => false};
       if (name === "../utils/playbackOrder") return context.exports;
       throw Error(name);
     },
