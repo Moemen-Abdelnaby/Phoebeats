@@ -77,6 +77,7 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   const base = `http://127.0.0.1:${server.address().port}`;
   const bridge = load('src/services/jamBridge.ts', {});
   const storage = new Map(), calls = [], errors = [], statuses = [];
+  const failedUploads = new Set();
   const native = async (name, args) => {
     calls.push([name, args]);
     if (name === 'jam_host_start') {
@@ -90,6 +91,7 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
       const data = await response.json(); if (!response.ok) throw Error(data.error); return data;
     }
     if (name === 'jam_upload') {
+      if (failedUploads.has(args.path)) throw Error('Room storage is full (5 GB).');
       const response = await fetch(`${args.server}/rooms/${args.code}/files`, { method: 'POST', headers: { Authorization: `Bearer ${args.token}`, 'x-audio-extension': 'mp3' }, body: Buffer.from('sample audio') });
       return response.json();
     }
@@ -120,6 +122,23 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   assert.ok(savedA.url.startsWith('local://C:/saved/'));
   assert.equal(calls.filter(([name, args]) => name === 'jam_download' && args.save).length, 1);
   assert.equal(storage.get('pb_jamSaved')[shared.jamId].url, savedA.url);
+  const reused = { ...song, url: 'local://C:/music/song.mp3' };
+  const unavailable = { ...song, title: 'Unavailable', url: 'local://C:/full.mp3' };
+  failedUploads.add('C:/full.mp3');
+  const uploadsBefore = calls.filter(([name]) => name === 'jam_upload').length;
+  await jam.command({ action: 'play', tracks: [unavailable, reused], index: 1 });
+  assert.equal(state.playing, true, 'a full room must still play the previously uploaded selection');
+  assert.equal(state.track.title, song.title);
+  assert.equal(calls.filter(([name]) => name === 'jam_upload').length, uploadsBefore + 1, 'only the unavailable file is attempted');
+  assert.match(errors.pop(), /Playing the selected song only/);
+  await jam.command({ action: 'play', tracks: [unavailable, { ...reused, title: 'Fresh selection', url: 'local://C:/fresh.mp3' }], index: 1 });
+  assert.equal(state.playing, true);
+  assert.equal(state.track.title, 'Fresh selection', 'resolve the clicked song before failing on an earlier playlist entry');
+  assert.match(errors.pop(), /Playing the selected song only/);
+  const beforeOversized = calls.filter(([name]) => name === 'jam_upload').length;
+  await jam.command({ action: 'play', tracks: Array(501).fill(unavailable) });
+  assert.equal(calls.filter(([name]) => name === 'jam_upload').length, beforeOversized);
+  assert.match(errors.pop(), /Choose up to 500/);
   jam.leave();
   assert.equal(bridge.isJamActive(), false);
   assert.equal(state.playing, false);

@@ -3,6 +3,7 @@ use crate::jam_room::{random_id, File, Room};
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Bytes, Request, Response};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{
     sync::{Arc, OnceLock},
     time::{Duration, Instant},
@@ -129,16 +130,25 @@ async fn route(
         return error(401, "Jam expired during transfer.");
     }
     if file_upload {
-        if !crate::jam_room::room_has_capacity(
-            r.files.values().map(|f| f.size).sum(),
-            bytes.len() as u64,
-        ) {
+        // Retries and alternate local paths must not consume room storage twice.
+        // Scope the key to the uploader so existing ownership checks still apply.
+        let mut digest = Sha256::new();
+        digest.update(member.as_bytes());
+        digest.update([0]);
+        digest.update(ext.as_bytes());
+        digest.update([0]);
+        digest.update(&bytes);
+        let key = format!("{:x}", digest.finalize())[..36].to_string();
+        if r.files.contains_key(&key) {
+            return response(200, json!({"key":key,"ext":ext}));
+        }
+        let used = r.files.values().map(|f| f.size).sum();
+        if !crate::jam_room::room_has_capacity(used, bytes.len() as u64) {
             return error(
                 413,
-                "Room storage is full (5 GB). Start a new Jam to clear shared audio.",
+                format!("Room storage is full (5 GB): {:.2} GB stored; this file needs {:.1} MB. Already shared songs can still play. Start a new Jam to clear shared audio.", used as f64 / 1073741824.0, bytes.len() as f64 / 1048576.0),
             );
         }
-        let key = random_id(18);
         let path = std::env::temp_dir().join(format!("phoebeats-jam-{key}.audio"));
         let output = match tokio::fs::OpenOptions::new()
             .write(true)
@@ -473,6 +483,62 @@ pub fn shutdown() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn jam_upload_retries_reuse_storage_even_when_full() {
+        let (room, token, _) = Room::new("Host").unwrap();
+        let code = room.code.clone();
+        let room = Arc::new(Mutex::new(room));
+        let attempts = Arc::new(Mutex::new((Instant::now(), 0)));
+        let upload = |bytes: &'static str| {
+            Request::builder()
+                .method("POST")
+                .uri(format!("/rooms/{code}/files"))
+                .header("authorization", format!("Bearer {token}"))
+                .header("x-audio-extension", "mp3")
+                .body(Bytes::from_static(bytes.as_bytes()))
+                .unwrap()
+        };
+        let first = route(upload("audio"), room.clone(), attempts.clone()).await;
+        assert_eq!(first.status(), 200);
+        let first: Value =
+            serde_json::from_slice(&first.into_body().collect().await.unwrap().to_bytes()).unwrap();
+        let key = first["key"].as_str().unwrap();
+        for _ in 0..3 {
+            let repeated = route(upload("audio"), room.clone(), attempts.clone()).await;
+            assert_eq!(repeated.status(), 200);
+            let repeated: Value =
+                serde_json::from_slice(&repeated.into_body().collect().await.unwrap().to_bytes())
+                    .unwrap();
+            assert_eq!(repeated, first);
+        }
+        {
+            let mut room = room.lock().await;
+            assert_eq!(room.files.len(), 1);
+            assert_eq!(room.files[key].size, 5);
+            // Exercise the full-room boundary without allocating five gigabytes.
+            room.files.get_mut(key).unwrap().size = crate::jam_room::ROOM_STORAGE_LIMIT;
+        }
+        assert_eq!(
+            route(upload("audio"), room.clone(), attempts.clone())
+                .await
+                .status(),
+            200
+        );
+        let rejected = route(upload("different audio"), room.clone(), attempts.clone()).await;
+        assert_eq!(rejected.status(), 413);
+        assert_eq!(room.lock().await.files.len(), 1);
+        let request = Request::builder()
+            .uri(format!("/rooms/{code}/files/{key}"))
+            .header("authorization", format!("Bearer {token}"))
+            .body(Bytes::new())
+            .unwrap();
+        let downloaded = route(request, room.clone(), attempts).await;
+        assert_eq!(downloaded.status(), 200);
+        assert_eq!(
+            &downloaded.into_body().collect().await.unwrap().to_bytes()[..],
+            b"audio"
+        );
+    }
     #[tokio::test]
     async fn jam_guest_pause_resume_preserves_room_and_shared_audio() {
         let (server, code, host_token, task) = setup().await;

@@ -118,24 +118,43 @@ export function useJam(player: Player, toast: (message: string) => void) {
       if (action.action === 'ended' && latest.current?.host !== s.memberId) return;
       setBusy(true);
       try {
-        const tracks: SharedSong[] = [];
-        for (const track of action.tracks || []) {
+        const input = action.tracks || [];
+        if (input.length > 500) throw Error('Choose up to 500 songs. No files were uploaded.');
+        const selectedIndex = Math.min(Math.max(0, action.index || 0), Math.max(0, input.length - 1));
+        const prepare = async (track: Track): Promise<SharedSong> => {
+          if (active.current !== s) throw Error('Jam ended during upload.');
           const shared = latest.current?.shared.find(t => t.jamId === (track as SharedSong).jamId);
-          if (shared) { tracks.push(shared); continue; }
-          if (!track.url.startsWith('local://')) { tracks.push(track as SharedSong); continue; }
+          if (shared) return shared;
+          if (!track.url.startsWith('local://')) return track as SharedSong;
           let uploaded = uploads.current.get(track.url);
           if (!uploaded) {
-            setStatus(`Sharing ${track.title}…`);
+            setStatus(`Sharing ${track.title}...`);
             const file = await invoke<{ key: string; ext: string }>('jam_upload', { ...s, path: track.url.slice(8) });
+            if (active.current !== s) throw Error('Jam ended during upload.');
             uploaded = { ...track, url: '', fileKey: file.key, ext: file.ext, jamId: '', owner: s.memberId, sharedBy: '' };
             uploads.current.set(track.url, uploaded);
           }
-          tracks.push(uploaded);
+          return uploaded;
+        };
+        // Resolve the clicked song first, even when an earlier playlist entry cannot upload.
+        const selected = action.action === 'play' && input.length ? await prepare(input[selectedIndex]) : undefined;
+        let tracks: SharedSong[] = [];
+        let playlistWarning = '';
+        let index = action.index;
+        try {
+          for (let i = 0; i < input.length; i++) {
+            tracks.push(selected && i === selectedIndex ? selected : await prepare(input[i]));
+          }
+        } catch (error) {
+          if (!selected || active.current !== s) throw error;
+          tracks = [selected]; index = 0;
+          playlistWarning = `Playing the selected song only. Could not queue the full playlist: ${String(error)}`;
         }
         if (active.current !== s) return;
-        const next = await request<JamRoom>(s, '/command', { ...action, tracks: action.tracks ? tracks : undefined, generation: endedGeneration });
+        const next = await request<JamRoom>(s, '/command', { ...action, index, tracks: action.tracks ? tracks : undefined, generation: endedGeneration });
         if (action.action === 'nickname' && action.name) saveNickname(action.name);
         await apply(next, s);
+        if (playlistWarning) { setStatus(playlistWarning); refs.current.toast(playlistWarning); }
       } catch (error) {
         if (action.action === 'ended') lastEnded.current = -1;
         throw error;

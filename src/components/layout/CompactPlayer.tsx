@@ -64,7 +64,7 @@ export function CompactPlayer(props: Props) {
     : localHour < 18
       ? "Good afternoon"
       : "Good evening";
-  const headerLabel = `${greeting}${p.nickname ? `, ${p.nickname}` : ""}`;
+  const headerLabel = `${greeting}${p.nickname ? ` ${p.nickname}` : ""}`;
   const [position, setPosition] = useState(() => {
     const value = loadLS<{ right?: number; top?: number } | null>(
       "pb_playerPosition",

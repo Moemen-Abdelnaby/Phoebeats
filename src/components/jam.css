@@ -21,6 +21,8 @@
 .jam-panel .jam-primary { background:linear-gradient(135deg,var(--pb-cyan-bright),var(--pb-cyan)); color:var(--pb-bg-deep); font-weight:650; min-height:40px; }
 .jam-panel .jam-primary:hover:not(:disabled) { background:var(--pb-cyan-bright); }
 .jam-invite { flex-wrap:wrap; }.jam-invite strong { letter-spacing:2px; }.jam-invite span { flex:1; font-size:12px; }
+.jam-invite > button { display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+.jam-invite > button > svg { flex-shrink:0; }
 .jam-panel .jam-permission { display:flex; align-items:center; margin:12px 0; }
 .jam-status { min-height:18px; overflow-wrap:anywhere; margin:12px 0; }
 .jam-panel nav { display:flex; gap:6px; border-bottom:1px solid #ffffff15; padding-bottom:12px; }
