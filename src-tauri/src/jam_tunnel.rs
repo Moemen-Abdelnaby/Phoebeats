@@ -220,30 +220,98 @@ pub async fn start(root: &Path, server: &str) -> Result<Tunnel, String> {
         .timeout(Duration::from_secs(4))
         .build()
         .map_err(|e| e.to_string())?;
-    // A printed hostname alone does not mean its route is reachable yet.
-    for _ in 0..15 {
-        if !tunnel.running() {
-            return Err("The internet connection stopped. Try again.".into());
-        }
-        if let Ok(r) = client.get(format!("{url}/health")).send().await {
-            if r.status().is_success()
-                && r.json::<Value>()
-                    .await
-                    .ok()
-                    .is_some_and(|v| v["ok"] == true)
-            {
-                tunnel.url = url;
-                return Ok(tunnel);
+    // Keep the same tunnel alive while its new hostname and route become ready.
+    // Fast DNS/HTTP failures must not exhaust the startup window early.
+    wait_until_ready(
+        Duration::from_secs(90),
+        Duration::from_secs(1),
+        || tunnel.running(),
+        || async {
+            if let Ok(r) = client.get(format!("{url}/health")).send().await {
+                r.status().is_success()
+                    && r.json::<Value>()
+                        .await
+                        .ok()
+                        .is_some_and(|v| v["ok"] == true)
+            } else {
+                false
             }
+        },
+    )
+    .await?;
+    tunnel.url = url;
+    Ok(tunnel)
+}
+
+async fn wait_until_ready<F, Fut>(
+    startup_timeout: Duration,
+    retry_interval: Duration,
+    mut running: impl FnMut() -> bool,
+    mut probe: F,
+) -> Result<(), String>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    tokio::time::timeout(startup_timeout, async {
+        loop {
+            if !running() {
+                return Err("The internet connection stopped. Try again.".into());
+            }
+            if probe().await {
+                return Ok(());
+            }
+            tokio::time::sleep(retry_interval).await;
         }
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-    }
-    Err("Internet Jam is not reachable yet. Try again in a moment.".into())
+    })
+    .await
+    .unwrap_or_else(|_| Err("Internet Jam could not become reachable within 90 seconds. Check your connection and try again.".into()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn readiness_survives_more_than_fifteen_fast_failures() {
+        let mut attempts = 0;
+        let result = wait_until_ready(
+            Duration::from_secs(2),
+            Duration::from_millis(1),
+            || true,
+            || {
+                attempts += 1;
+                std::future::ready(attempts == 20)
+            },
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(attempts, 20);
+    }
+
+    #[tokio::test]
+    async fn readiness_deadline_also_bounds_a_stalled_probe() {
+        let result = wait_until_ready(
+            Duration::from_millis(20),
+            Duration::from_millis(1),
+            || true,
+            || std::future::pending::<bool>(),
+        )
+        .await;
+        assert!(result.unwrap_err().contains("could not become reachable"));
+    }
+
+    #[tokio::test]
+    async fn readiness_stops_when_helper_exits() {
+        let result = wait_until_ready(
+            Duration::from_secs(2),
+            Duration::from_millis(1),
+            || false,
+            || async { panic!("must not probe a stopped tunnel") },
+        )
+        .await;
+        assert!(result.unwrap_err().contains("connection stopped"));
+    }
+
     #[test]
     fn only_accept_tunnel_origin() {
         assert_eq!(

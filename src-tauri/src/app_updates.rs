@@ -109,9 +109,33 @@ pub async fn install_app_update(
         .take()
         .ok_or("Download the update before installing.")?;
     // Windows starts its installer and exits; other platforms return and restart.
-    tokio::task::spawn_blocking(move || update.install(bytes))
-        .await
-        .map_err(|_| "Couldn't install the update. Please download it again and retry.")?
-        .map_err(|_| "Couldn't install the update. Please download it again and retry.")?;
+    tokio::task::spawn_blocking(move || {
+        // The Windows installer exits this process without running Tauri's exit
+        // handler. Release mpv.exe first, and hold the lock through installation
+        // so a concurrent playback request cannot start it again.
+        let mut process = crate::mpv_process()
+            .lock()
+            .map_err(|_| "Couldn't stop playback. Restart the app and try again.")?;
+        if let Some(child) = process.as_mut() {
+            if child
+                .try_wait()
+                .map_err(|_| "Couldn't check playback. Restart the app and try again.")?
+                .is_none()
+            {
+                child
+                    .kill()
+                    .map_err(|_| "Couldn't stop playback. Restart the app and try again.")?;
+            }
+            child
+                .wait()
+                .map_err(|_| "Couldn't stop playback. Restart the app and try again.")?;
+        }
+        *process = None;
+        update
+            .install(bytes)
+            .map_err(|_| "Couldn't install the update. Please download it again and retry.")
+    })
+    .await
+    .map_err(|_| "Couldn't install the update. Please download it again and retry.")??;
     app.restart();
 }

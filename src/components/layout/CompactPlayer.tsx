@@ -52,21 +52,19 @@ export function CompactPlayer(props: Props) {
   );
   const progressSeconds = usePlaybackProgress(controlsVisible);
   const p = { ...props, progressSeconds };
-  const [showGreeting, setShowGreeting] = useState(false);
+  const [localHour, setLocalHour] = useState(() => new Date().getHours());
   useEffect(() => {
     if (!controlsVisible) return;
-    const timer = window.setInterval(() => setShowGreeting((value) => !value), 8000);
+    setLocalHour(new Date().getHours());
+    const timer = window.setInterval(() => setLocalHour(new Date().getHours()), 60000);
     return () => window.clearInterval(timer);
   }, [controlsVisible]);
-  const localHour = new Date().getHours();
   const greeting = localHour < 12
     ? "Good morning"
     : localHour < 18
       ? "Good afternoon"
       : "Good evening";
-  const headerLabel = showGreeting
-    ? `${greeting}${p.nickname ? `, ${p.nickname}` : ""}`
-    : p.nickname || "Phoebeats";
+  const headerLabel = `${greeting}${p.nickname ? `, ${p.nickname}` : ""}`;
   const [position, setPosition] = useState(() => {
     const value = loadLS<{ right?: number; top?: number } | null>(
       "pb_playerPosition",
