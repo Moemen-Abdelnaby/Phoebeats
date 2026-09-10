@@ -60,7 +60,8 @@ fn asset_name() -> Result<&'static str, String> {
         _ => Err("Automatic internet hosting supports Windows x64 and Linux x64/ARM64.".into()),
     }
 }
-async fn install(root: &Path) -> Result<PathBuf, String> {
+async fn install(root: &Path, progress: &tauri::ipc::Channel<String>) -> Result<PathBuf, String> {
+    let _ = progress.send("Checking the Internet connection helper release on GitHub...".into());
     tokio::fs::create_dir_all(root)
         .await
         .map_err(|e| e.to_string())?;
@@ -102,9 +103,11 @@ async fn install(root: &Path) -> Result<PathBuf, String> {
     ));
     if let Ok(bytes) = tokio::fs::read(&path).await {
         if checksum(&bytes) == expected {
+            let _ = progress.send("Using the verified cached connection helper.".into());
             return Ok(path);
         }
     }
+    let _ = progress.send("Downloading the connection helper... (3-minute timeout)".into());
     let mut response = client
         .get(url)
         .send()
@@ -112,13 +115,26 @@ async fn install(root: &Path) -> Result<PathBuf, String> {
         .map_err(|e| e.to_string())?
         .error_for_status()
         .map_err(|e| e.to_string())?;
+    let total = response.content_length();
+    let mut last_update = std::time::Instant::now();
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
         if bytes.len() + chunk.len() > 160 * 1024 * 1024 {
             return Err("Internet helper download is too large.".into());
         }
         bytes.extend_from_slice(&chunk);
+        if last_update.elapsed() >= Duration::from_millis(500) {
+            let downloaded = bytes.len() as f64 / 1048576.0;
+            let size = total
+                .map(|n| format!(" / {:.1} MB", n as f64 / 1048576.0))
+                .unwrap_or_else(|| " MB".into());
+            let _ = progress.send(format!(
+                "Downloading connection helper: {downloaded:.1}{size}..."
+            ));
+            last_update = std::time::Instant::now();
+        }
     }
+    let _ = progress.send("Verifying the downloaded connection helper...".into());
     if checksum(&bytes) != expected {
         return Err("Internet helper verification failed. Try again.".into());
     }
@@ -154,13 +170,22 @@ fn tunnel_url(line: &str) -> Option<String> {
         }
     })
 }
-pub async fn start(root: &Path, server: &str) -> Result<Tunnel, String> {
-    let binary = install(root).await?;
+pub async fn start(
+    root: &Path,
+    server: &str,
+    progress: tauri::ipc::Channel<String>,
+) -> Result<Tunnel, String> {
+    let binary = install(root, &progress)
+        .await
+        .map_err(|e| format!("Connection helper setup failed: {e}"))?;
+    let _ = progress.send(
+        "Starting connection helper; waiting for a public address (up to 60 seconds)...".into(),
+    );
     if STOPPING.load(Ordering::SeqCst) {
         return Err("App is shutting down.".into());
     }
     let config = root.join("quick-tunnel.yml");
-    tokio::fs::write(&config, "# Phoebeats temporary Jam tunnel\n")
+    tokio::fs::write(&config, "# Phoebeats temporary Jam tunnel\n{}\n")
         .await
         .map_err(|e| e.to_string())?;
     let mut command = Command::new(binary);
@@ -194,10 +219,23 @@ pub async fn start(root: &Path, server: &str) -> Result<Tunnel, String> {
         return Err("App is shutting down.".into());
     }
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    let diagnostic = Arc::new(Mutex::new(String::from("No helper warnings reported.")));
+    let reader_diagnostic = diagnostic.clone();
+    let helper_progress = progress.clone();
     let reader = tokio::spawn(async move {
         let mut lines = BufReader::new(stderr).lines();
         let mut sent = false;
         while let Ok(Some(line)) = lines.next_line().await {
+            if line.contains(" ERR ") || line.contains(" WRN ") {
+                if let Ok(mut latest) = reader_diagnostic.lock() {
+                    *latest = line.chars().filter(|c| !c.is_control()).take(800).collect();
+                    if !sent {
+                        let _ = helper_progress.send(format!(
+                            "Waiting for a public tunnel address... Helper: {latest}"
+                        ));
+                    }
+                }
+            }
             if !sent {
                 if let Some(url) = tunnel_url(&line) {
                     let _ = tx.send(url).await;
@@ -215,30 +253,61 @@ pub async fn start(root: &Path, server: &str) -> Result<Tunnel, String> {
         .await
         .ok()
         .flatten()
-        .ok_or("Internet connection could not start. Check your connection and try again.")?;
+        .ok_or_else(|| {
+            format!(
+                "No public tunnel address received within 60 seconds. {}",
+                diagnostic.lock().map(|s| s.clone()).unwrap_or_default()
+            )
+        })?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(4))
         .build()
         .map_err(|e| e.to_string())?;
     // Keep the same tunnel alive while its new hostname and route become ready.
     // Fast DNS/HTTP failures must not exhaust the startup window early.
+    let last_probe = Arc::new(Mutex::new(String::from("No health response received.")));
+    let started = std::time::Instant::now();
     wait_until_ready(
         Duration::from_secs(90),
         Duration::from_secs(1),
         || tunnel.running(),
         || async {
-            if let Ok(r) = client.get(format!("{url}/health")).send().await {
-                r.status().is_success()
-                    && r.json::<Value>()
-                        .await
-                        .ok()
-                        .is_some_and(|v| v["ok"] == true)
-            } else {
-                false
+            let result = match client.get(format!("{url}/health")).send().await {
+                Ok(r) if !r.status().is_success() => {
+                    Err(format!("Public health check returned HTTP {}.", r.status()))
+                }
+                Ok(r) => match r.json::<Value>().await {
+                    Ok(v) if v["ok"] == true => Ok(()),
+                    Ok(_) => Err("Public health check returned an unexpected response.".into()),
+                    Err(e) => Err(format!("Could not read public health response: {e}")),
+                },
+                Err(e) => Err(format!("Public health request failed: {e:?}")),
+            };
+            match result {
+                Ok(()) => true,
+                Err(error) => {
+                    if let Ok(mut latest) = last_probe.lock() {
+                        *latest = error.clone();
+                    }
+                    let helper = diagnostic.lock().map(|s| s.clone()).unwrap_or_default();
+                    let _ = progress.send(format!(
+                        "Waiting for the public Jam connection ({}/90 seconds)... {error} {helper}",
+                        started.elapsed().as_secs()
+                    ));
+                    false
+                }
             }
         },
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        format!(
+            "{e} Last check: {} Helper: {}",
+            last_probe.lock().map(|s| s.clone()).unwrap_or_default(),
+            diagnostic.lock().map(|s| s.clone()).unwrap_or_default()
+        )
+    })?;
+    let _ = progress.send("Internet Jam is reachable. Joining the room...".into());
     tunnel.url = url;
     Ok(tunnel)
 }

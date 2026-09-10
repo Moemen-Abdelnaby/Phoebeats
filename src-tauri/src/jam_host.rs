@@ -95,11 +95,14 @@ async fn route(
     }
     if path.len() == 4 && path[2] == "files" && method == hyper::Method::GET {
         return match r.files.get(&path[3]) {
-            Some(f) => Response::builder()
-                .header("content-type", "application/octet-stream")
-                .header("cache-control", "no-store")
-                .body(Full::new(f.bytes.clone()))
-                .unwrap(),
+            Some(f) => match tokio::fs::read(&f.path).await {
+                Ok(bytes) => Response::builder()
+                    .header("content-type", "application/octet-stream")
+                    .header("cache-control", "no-store")
+                    .body(Full::new(Bytes::from(bytes)))
+                    .unwrap(),
+                Err(_) => error(404, "Shared audio is no longer available. Share it again."),
+            },
             None => error(404, "File unavailable."),
         };
     }
@@ -126,19 +129,43 @@ async fn route(
         return error(401, "Jam expired during transfer.");
     }
     if file_upload {
-        if r.files.values().map(|f| f.bytes.len()).sum::<usize>() + bytes.len() > 500 * 1024 * 1024
-        {
-            return error(413, "Room storage is full.");
+        if !crate::jam_room::room_has_capacity(
+            r.files.values().map(|f| f.size).sum(),
+            bytes.len() as u64,
+        ) {
+            return error(
+                413,
+                "Room storage is full (5 GB). Start a new Jam to clear shared audio.",
+            );
         }
         let key = random_id(18);
-        r.files.insert(
-            key.clone(),
-            File {
-                bytes,
-                ext: ext.clone(),
-                owner: member,
-            },
-        );
+        let path = std::env::temp_dir().join(format!("phoebeats-jam-{key}.audio"));
+        let output = match tokio::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .await
+        {
+            Ok(file) => file,
+            Err(e) => return error(507, format!("Could not create temporary Jam audio: {e}")),
+        };
+        let file = File {
+            path,
+            size: bytes.len() as u64,
+            ext: ext.clone(),
+            owner: member,
+        };
+        // Close the Windows file handle before the cleanup guard on cancellation.
+        let mut output = output;
+        let result = output.write_all(&bytes).await;
+        drop(output);
+        if let Err(e) = result {
+            return error(
+                507,
+                format!("Could not store Jam audio. Check free disk space: {e}"),
+            );
+        }
+        r.files.insert(key.clone(), file);
         return response(200, json!({"key":key,"ext":ext}));
     }
     let body: Value = match serde_json::from_slice(&bytes) {
@@ -366,10 +393,12 @@ pub async fn jam_host_start(
     app: tauri::AppHandle,
     mode: String,
     name: String,
+    on_progress: tauri::ipc::Channel<String>,
 ) -> Result<Value, String> {
     if !["local", "internet"].contains(&mode.as_str()) {
         return Err("Choose Local or Internet.".into());
     }
+    let _ = on_progress.send("Starting the local Jam server...".into());
     let (room, token, member) = Room::new(&name)?;
     let mut slot = host().lock().await;
     if slot.is_some() {
@@ -403,7 +432,7 @@ pub async fn jam_host_start(
             .app_data_dir()
             .map_err(|e| e.to_string())?
             .join("jam-tools");
-        let tunnel = crate::jam_tunnel::start(&root, &server).await?;
+        let tunnel = crate::jam_tunnel::start(&root, &server, on_progress).await?;
         let url = tunnel.url.clone();
         hosted.tunnel = Some(tunnel);
         url
@@ -444,6 +473,158 @@ pub fn shutdown() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn jam_guest_pause_resume_preserves_room_and_shared_audio() {
+        let (server, code, host_token, task) = setup().await;
+        let client = reqwest::Client::new();
+        let root = format!("{server}/rooms/{code}");
+        async fn post(client: &reqwest::Client, url: &str, token: &str, body: Value) -> Value {
+            client
+                .post(url)
+                .bearer_auth(token)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .error_for_status()
+                .unwrap()
+                .json()
+                .await
+                .unwrap()
+        }
+        let host: Value = client
+            .get(&root)
+            .bearer_auth(&host_token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        let guest = post(
+            &client,
+            &format!("{root}/join"),
+            "",
+            json!({"name":"Guest"}),
+        )
+        .await;
+        let guest_token = guest["token"].as_str().unwrap();
+        let file: Value = client
+            .post(format!("{root}/files"))
+            .bearer_auth(&host_token)
+            .header("x-audio-extension", "mp3")
+            .body("shared audio")
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        let command_url = format!("{root}/command");
+        let started = post(
+            &client,
+            &command_url,
+            &host_token,
+            json!({"action":"play","tracks":[
+                {"title":"Local song","fileKey":file["key"]},
+                {"title":"Next song","url":"https://youtu.be/abc"}
+            ]}),
+        )
+        .await;
+        for token in [&host_token[..], guest_token] {
+            post(
+                &client,
+                &command_url,
+                token,
+                json!({"action":"ready","generation":started["generation"]}),
+            )
+            .await;
+        }
+        post(
+            &client,
+            &command_url,
+            &host_token,
+            json!({"action":"seek","position":30}),
+        )
+        .await;
+        for playing in [false, true, false, true] {
+            let changed = post(
+                &client,
+                &command_url,
+                guest_token,
+                json!({"action":"toggle"}),
+            )
+            .await;
+            assert_eq!(changed["playing"], playing);
+            assert_eq!(changed["waiting"], false);
+            assert_eq!(changed["host"], host["host"]);
+            assert_eq!(changed["members"].as_array().unwrap().len(), 2);
+            assert_eq!(changed["current"], started["current"]);
+            assert_eq!(changed["shared"], started["shared"]);
+            assert_eq!(changed["queue"], started["queue"]);
+            assert_eq!(changed["generation"], started["generation"]);
+            assert!(changed["position"].as_f64().unwrap() >= 30.0);
+            for token in [&host_token[..], guest_token] {
+                let snapshot: Value = client
+                    .get(&root)
+                    .bearer_auth(token)
+                    .send()
+                    .await
+                    .unwrap()
+                    .error_for_status()
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                assert_eq!(snapshot["playing"], playing);
+                let audio = client
+                    .get(format!("{root}/files/{}", file["key"].as_str().unwrap()))
+                    .bearer_auth(token)
+                    .send()
+                    .await
+                    .unwrap()
+                    .error_for_status()
+                    .unwrap()
+                    .bytes()
+                    .await
+                    .unwrap();
+                assert_eq!(&audio[..], b"shared audio");
+            }
+        }
+        post(
+            &client,
+            &command_url,
+            &host_token,
+            json!({"action":"permissions","hostOnly":true}),
+        )
+        .await;
+        assert_eq!(
+            client
+                .post(&command_url)
+                .bearer_auth(guest_token)
+                .json(&json!({"action":"toggle"}))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            400
+        );
+        let snapshot: Value = client
+            .get(&root)
+            .bearer_auth(guest_token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(snapshot["playing"], true);
+        assert_eq!(snapshot["members"].as_array().unwrap().len(), 2);
+        task.abort();
+        let _ = task.await;
+    }
     async fn setup() -> (String, String, String, JoinHandle<()>) {
         let (room, token, _) = Room::new("Host").unwrap();
         let code = room.code.clone();
@@ -535,6 +716,8 @@ mod tests {
             .await
             .unwrap();
         let key = uploaded["key"].as_str().unwrap();
+        let stored_path = std::env::temp_dir().join(format!("phoebeats-jam-{key}.audio"));
+        assert_eq!(tokio::fs::read(&stored_path).await.unwrap(), b"audio bytes");
         let downloaded = client
             .get(format!("{root}/files/{key}"))
             .bearer_auth(&token)

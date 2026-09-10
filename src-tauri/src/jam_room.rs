@@ -1,5 +1,4 @@
 //! The room protocol shared by the automatic desktop host and its guests.
-use hyper::body::Bytes;
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
@@ -15,6 +14,30 @@ pub fn random_id(bytes: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn jam_room_disk_capacity_and_cleanup() {
+        assert!(room_has_capacity(500 * 1024 * 1024, 100 * 1024 * 1024));
+        assert!(room_has_capacity(ROOM_STORAGE_LIMIT - 1, 1));
+        assert!(!room_has_capacity(ROOM_STORAGE_LIMIT, 1));
+        assert!(!room_has_capacity(u64::MAX, 1));
+        let path = std::env::temp_dir().join(format!("phoebeats-jam-test-{}", random_id(18)));
+        std::fs::write(&path, b"audio").unwrap();
+        let (mut room, _, owner) = Room::new("Host").unwrap();
+        room.files.insert(
+            "test".into(),
+            File {
+                path: path.clone(),
+                size: 5,
+                ext: "mp3".into(),
+                owner,
+            },
+        );
+        drop(room);
+        assert!(
+            !path.exists(),
+            "Closing the room must remove its temporary audio"
+        );
+    }
     #[test]
     fn jam_room_shared_shuffle_and_ready_barrier() {
         let (mut r, _, host) = Room::new("Host").unwrap();
@@ -93,9 +116,20 @@ pub struct Member {
     seen: Instant,
 }
 pub struct File {
-    pub bytes: Bytes,
+    pub path: std::path::PathBuf,
+    pub size: u64,
     pub ext: String,
     pub owner: String,
+}
+impl Drop for File {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+pub const ROOM_STORAGE_LIMIT: u64 = 5 * 1024 * 1024 * 1024;
+pub fn room_has_capacity(used: u64, incoming: u64) -> bool {
+    used.checked_add(incoming)
+        .is_some_and(|total| total <= ROOM_STORAGE_LIMIT)
 }
 pub struct Room {
     pub code: String,

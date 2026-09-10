@@ -28,13 +28,13 @@ Playing a playlist replaces the Jam queue without editing the personal playlist.
 
 Each track starts after both clients report that it loaded. Clients poll every 750 ms and correct position differences over 1.2 seconds. This is approximate synchronized listening, not sample-accurate multi-speaker playback. A slow download pauses the start for everyone. A participant with playback permission can skip an unavailable track. Interrupted connections pause playback and retry, then require joining again.
 
-Online YouTube tracks are loaded independently by each app. Selected local files are uploaded to the host's embedded service, then downloaded to each player's private playback cache. Files are limited to 100 MB each and 500 MB per room, with at most two simultaneous audio uploads. Uploads can take time before a playlist starts. Sharing a local playlist uploads its selected tracks. Only explicitly selected audio is shared, and local file paths are not sent to the friend.
+Online YouTube tracks are loaded independently by each app. Selected local files are uploaded to the host's embedded service, then downloaded to each player's private playback cache. Files are limited to 100 MB each and 5 GB per desktop-hosted room, with at most two simultaneous audio uploads. Uploads can take time before a playlist starts. Sharing a local playlist uploads its selected tracks. Only explicitly selected audio is shared, and local file paths are not sent to the friend.
 
 ## Shared songs and saving
 
 The Jam panel includes the shared queue, shared songs with contributor names, and the last 20 sessions. Audio files can be downloaded permanently, or saved directly to an existing/new playlist. Online tracks save as references. Permanent copies live in the application's data directory under `jam-saved`; playback copies live under `jam-cache`. Saving uses a stable file key to avoid duplicate downloads. A saved playlist remains usable after leaving the room.
 
-Room data and relay files are in memory and disappear when hosting ends. Disconnected guests expire after 45 seconds. History is local metadata; an unsaved file from a previous room must be shared again. The playback cache is not a permanent download library.
+Room metadata stays in memory. Desktop hosts store relay audio in temporary files on disk and remove those files when hosting ends normally. A forced process termination can leave temporary files behind. The standalone development server still has a 500 MB in-memory room limit. Disconnected guests expire after 45 seconds. History is local metadata; an unsaved file from a previous room must be shared again. The playback cache is not a permanent download library.
 
 ## Verification
 

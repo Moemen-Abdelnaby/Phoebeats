@@ -76,10 +76,12 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
   const base = `http://127.0.0.1:${server.address().port}`;
   const bridge = load('src/services/jamBridge.ts', {});
-  const storage = new Map(), calls = [], errors = [];
+  const storage = new Map(), calls = [], errors = [], statuses = [];
   const native = async (name, args) => {
     calls.push([name, args]);
     if (name === 'jam_host_start') {
+      args.onProgress.onmessage('Checking the connection helper...');
+      args.onProgress.onmessage('Waiting for public reachability...');
       const response = await fetch(`${base}/rooms`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:args.name})});
       return {...await response.json(),server:base,publicServer:base,hostId:'host-test',mode:args.mode};
     }
@@ -100,9 +102,9 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   };
   const react = { useState: value => {
     let current = typeof value === 'function' ? value() : value;
-    return [current, update => { current = typeof update === 'function' ? update(current) : update; }];
+    return [current, update => { current = typeof update === 'function' ? update(current) : update; statuses.push(current); }];
   }, useRef: current => ({ current }), useEffect() {} };
-  const { useJam } = load('src/hooks/useJam.ts', { react, '@tauri-apps/api/core': { invoke: native }, '../services/jamBridge': bridge,
+  const { useJam } = load('src/hooks/useJam.ts', { react, '@tauri-apps/api/core': { invoke: native, Channel: class { onmessage() {} } }, '../services/jamBridge': bridge,
     '../services/jamInvite': load('src/services/jamInvite.ts', {}),
     '../services/nickname': {saveNickname: name => { storage.set('pb_jamName',name.trim()); return name.trim(); }},
     '../utils': { loadLS: (_, fallback) => fallback, saveLS: (key, value) => storage.set(key, value) } });
@@ -124,6 +126,10 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   assert.equal(state.queue[0].url, personalQueue[0].url);
   assert.equal(state.shuffle, true); assert.equal(state.repeat, 'all');
   await jam.start('local','New host');
+  assert.ok(statuses.includes('Checking the connection helper...'));
+  assert.ok(statuses.includes('Waiting for public reachability...'));
+  calls.find(([name]) => name === 'jam_host_start')[1].onProgress.onmessage('Late startup message');
+  assert.ok(!statuses.includes('Late startup message'));
   assert.equal(storage.get('pb_jamName'),'New host');
   await jam.rename('Updated host');
   assert.equal(storage.get('pb_jamName'),'Updated host');
