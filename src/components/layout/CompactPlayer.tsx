@@ -52,6 +52,21 @@ export function CompactPlayer(props: Props) {
   );
   const progressSeconds = usePlaybackProgress(controlsVisible);
   const p = { ...props, progressSeconds };
+  const [showGreeting, setShowGreeting] = useState(false);
+  useEffect(() => {
+    if (!controlsVisible) return;
+    const timer = window.setInterval(() => setShowGreeting((value) => !value), 8000);
+    return () => window.clearInterval(timer);
+  }, [controlsVisible]);
+  const localHour = new Date().getHours();
+  const greeting = localHour < 12
+    ? "Good morning"
+    : localHour < 18
+      ? "Good afternoon"
+      : "Good evening";
+  const headerLabel = showGreeting
+    ? `${greeting}${p.nickname ? `, ${p.nickname}` : ""}`
+    : p.nickname || "Phoebeats";
   const [position, setPosition] = useState(() => {
     const value = loadLS<{ right?: number; top?: number } | null>(
       "pb_playerPosition",
@@ -128,7 +143,7 @@ export function CompactPlayer(props: Props) {
         </button>
         <span
           className="pb-mini-nickname"
-          title={`${p.nickname || 'Phoebeats'} · Drag to move player`}
+          title={`${headerLabel} · Drag to move player`}
           style={{ cursor: "grab", touchAction: "none" }}
           onPointerDown={(e) => {
             const startX = e.clientX,
@@ -153,7 +168,7 @@ export function CompactPlayer(props: Props) {
             target.addEventListener("pointercancel", stop);
           }}
         >
-          {p.nickname || "Phoebeats"}
+          {headerLabel}
         </span>
         <button
           className="pb-mini-toggle"
