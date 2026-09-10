@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Radio, X, Copy, Download, ListPlus } from 'lucide-react';
 import { useJam, SharedSong } from '../hooks/useJam';
 import { Playlist, Track } from '../types';
-import { loadLS } from '../utils';
+import { useNickname } from '../hooks/useNickname';
+import { saveNickname } from '../services/nickname';
 import { JamMode } from '../services/jamInvite';
 import './jam.css';
 
 type Props = { jam: ReturnType<typeof useJam>; playlists: Playlist[]; setPlaylists: (update: (prev: Playlist[]) => Playlist[]) => void; toast: (message: string) => void; downloadOnline: (track: Track) => Promise<void>; onlineProgress: Record<string, number> };
 export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, onlineProgress }: Props) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(() => loadLS('pb_jamName', ''));
+  const nickname = useNickname();
+  const [name, setName] = useState(nickname);
+  useEffect(() => { setName(nickname); }, [nickname]);
+  function saveLocalNickname() {
+    try { setName(saveNickname(name)); toast('Nickname saved on this device'); }
+    catch (error) { toast(String(error)); }
+  }
   const [mode, setMode] = useState<JamMode>('local');
   const [intent, setIntent] = useState<'host' | 'join'>('host');
   const [invite, setInvite] = useState('');
@@ -46,7 +54,7 @@ export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, 
   }
   return <>
     <button className={`jam-launch ${jam.room ? 'is-live' : ''}`} onClick={() => setOpen(true)}><Radio size={16} /> {jam.room ? 'In a Jam' : 'Start / Join Jam'}</button>
-    {open && <div className="jam-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false); }}>
+    {open && createPortal(<div className="jam-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <section className="jam-panel" role="dialog" aria-modal="true" aria-label="Jam" onKeyDown={e => {
         if (e.key === 'Escape') setOpen(false);
         if (e.key === 'Tab') {
@@ -66,7 +74,8 @@ export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, 
             <button type="button" aria-pressed={intent === 'host'} disabled={jam.busy} onClick={() => setIntent('host')}>Start a Jam</button>
             <button type="button" aria-pressed={intent === 'join'} disabled={jam.busy} onClick={() => setIntent('join')}>Join a friend</button>
           </div>
-          <label>Your nickname<input required maxLength={40} disabled={jam.busy} value={name} onChange={e => setName(e.target.value)} placeholder="What should your friend call you?" /></label>
+          <div className="jam-nickname"><label>Your nickname<input required maxLength={40} autoComplete="nickname" disabled={jam.busy} value={name} onChange={e => setName(e.target.value)} placeholder="What should your friend call you?" /></label><button type="button" disabled={jam.busy || !name.trim() || name.trim() === nickname} onClick={saveLocalNickname}>Save nickname</button></div>
+          <small className="jam-profile-hint">{nickname && name.trim() === nickname ? 'Saved on this device · also shown on your player' : 'Your nickname appears on your player and in Jams.'}</small>
           {intent === 'join' ? <label>Friend’s invite<input required disabled={jam.busy} value={invite} onChange={e => setInvite(e.target.value)} placeholder="Paste the full Jam invite" /></label> : <small>{mode === 'local' ? 'The app starts your Jam automatically. Share the invite with a friend on your network.' : 'The app creates a temporary internet connection using Cloudflare. First use downloads a connection helper. Keep the host’s app open.'}</small>}
           <button className="jam-primary" disabled={jam.busy}>{jam.busy ? 'Connecting…' : intent === 'join' ? 'Join Jam' : `Start ${mode === 'local' ? 'Local' : 'Internet'} Jam`}</button>
         </form> : <div className="jam-room">
@@ -88,6 +97,6 @@ export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, 
           {tab === 'history' && (jam.history.length ? jam.history.map(h => <details key={h.code}><summary>{new Date(h.date).toLocaleDateString()} · {h.songs.length} songs · {h.code}</summary><ul>{songs(h.songs, false)}</ul></details>) : <p className="jam-empty">Your past Jams will appear here.</p>)}
         </div>
       </section>
-    </div>}
+    </div>, document.body)}
   </>;
 }

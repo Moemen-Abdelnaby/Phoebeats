@@ -299,66 +299,17 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
       <>
         {openPlaylist ? (
           <div
-            className="flex-1 overflow-y-auto custom-scrollbar"
+            className="pb-playlist-detail flex-1 overflow-y-auto custom-scrollbar"
             style={{
-              padding: "24px 30px 140px",
               zIndex: 10,
               position: "relative",
             }}
           >
-            {getPlaylistCover(openPlaylist) ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "360px",
-                  overflow: "hidden",
-                  pointerEvents: "none",
-                  zIndex: 0,
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "-25px",
-                    backgroundImage: `url(${getPlaylistCover(openPlaylist)})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    filter: "blur(50px) brightness(0.35) saturate(1.3)",
-                    transform: "scale(1.1)",
-                    opacity: 0.8,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(180deg, rgba(12,11,11,0.3) 0%, rgba(12,11,11,0.92) 80%, var(--v-bg0) 100%)",
-                  }}
-                />
-              </div>
-            ) : (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "360px",
-                  background:
-                    openPlaylist.id === "p1"
-                      ? "linear-gradient(180deg, rgba(224,85,85,0.08) 0%, rgba(0,0,0,0) 100%)"
-                      : "linear-gradient(180deg, rgba(226,221,217,0.05) 0%, rgba(0,0,0,0) 100%)",
-                  pointerEvents: "none",
-                  zIndex: 0,
-                }}
-              />
-            )}
+            <div className="pb-playlist-backdrop" data-liked={openPlaylist.id === 'p1'} aria-hidden="true">
+              {getPlaylistCover(openPlaylist) && <img src={getPlaylistCover(openPlaylist)!} alt="" />}
+            </div>
 
-            <div
+            <div className="pb-playlist-hero"
               style={{
                 position: "relative",
                 zIndex: 1,
@@ -368,7 +319,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                 marginBottom: "28px",
               }}
             >
-              <div
+              <div className="pb-playlist-hero-art"
                 style={{
                   width: "140px",
                   height: "140px",
@@ -534,6 +485,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                     alignItems: "center",
                     gap: "10px",
                     marginTop: "18px",
+                    flexWrap: "wrap",
                   }}
                 >
                   <button
@@ -1161,12 +1113,12 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
           </div>
         ) : (
           <div
-            className="flex-1 overflow-y-auto custom-scrollbar"
-            style={{ padding: "24px 30px 140px", zIndex: 10 }}
+            className="pb-playlists-overview flex-1 overflow-y-auto custom-scrollbar"
+            style={{ zIndex: 10 }}
           >
             <div className="v-library-container">
               <div className="v-library-main">
-                <div
+                <div className="pb-playlists-heading"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1479,7 +1431,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                   </div>
                 </div>
                 {playlistViewMode === "grid" ? (
-                  <div
+                  <div className="pb-playlist-grid"
                     style={{
                       display: "grid",
                       gap: "20px",
@@ -1512,6 +1464,15 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                             }
                           }}
                           className="v-pl-card"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open ${pl.name}`}
+                          onKeyDown={(e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              if (isPlaylistMultiSelect) toggleSelect(); else setOpenPlaylistId(pl.id);
+                            }
+                          }}
                           style={{
                             animation: `fadeUp 0.2s cubic-bezier(0.2,0,0,1) ${plIdx * 30}ms both`,
                             position: "relative",
@@ -1873,6 +1834,15 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                             }
                           }}
                           className="v-pl-list-row"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open ${pl.name}`}
+                          onKeyDown={(e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              if (isPlaylistMultiSelect) toggleSelect(); else setOpenPlaylistId(pl.id);
+                            }
+                          }}
                           onClick={() => {
                             if (isPlaylistMultiSelect) {
                               toggleSelect();

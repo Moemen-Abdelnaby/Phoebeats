@@ -18,7 +18,7 @@ The host's app must remain running. **End Jam**, quitting the host app, or a hos
 
 ## Nicknames
 
-Each participant chooses their own nickname and can edit it during a Jam using **Update nickname**. Names are remembered on that device, are limited to 40 characters, and cannot be blank. Changing a name updates member labels and shared-song attribution. Host-only playback permissions do not prevent nickname changes. A participant cannot rename the other person.
+Use **Save nickname** in the Jam panel to save your name without joining a room. The saved nickname appears in the compact player's header immediately and survives app restarts. Starting or joining a Jam also saves your chosen name, even if the connection fails. Existing saved Jam nicknames are reused. During a Jam, **Update nickname** updates your device profile, member labels, and shared-song attribution together. Names are limited to 40 characters and cannot be blank. Host-only playback permissions do not prevent nickname changes. A participant cannot rename the other person.
 
 ## Playback
 

@@ -48,6 +48,7 @@ import { useSearch } from "./hooks/useSearch";
 import { usePlaylists } from "./hooks/usePlaylists";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
 import { useJam } from "./hooks/useJam";
+import { useNickname } from "./hooks/useNickname";
 import { JamPanel } from "./components/JamPanel";
 import { useScrobbler } from "./hooks/useScrobbler";
 
@@ -89,6 +90,7 @@ function normalizeNav(nav: string): NavView {
 }
 
 export function App() {
+  const nickname = useNickname();
   const { toast, showToast } = useToast();
 
   const {
@@ -2428,6 +2430,7 @@ export function App() {
 
       {/* 4. Bottom Player Bar */}
       <PlayerBar
+        nickname={nickname}
         panelOpen={panelOpen}
         onOpenPlaylists={() => {
           if (panelOpen && activeNav === "playlists") {

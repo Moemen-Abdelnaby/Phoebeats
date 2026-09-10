@@ -48,6 +48,7 @@ test("compact player exposes transport, panel actions, seek and volume", () => {
       isTrackLiked: () => true,
       isPlaying: true,
       volume: 40,
+      nickname: "Moonlight",
       progressSeconds: 30,
       trackDurationSeconds: 120,
       repeatMode: "off",
@@ -66,6 +67,8 @@ test("compact player exposes transport, panel actions, seek and volume", () => {
   ])
     assert.ok(html.includes(`aria-label="${label}"`), label);
   assert.ok(html.includes("Night song"));
+  assert.ok(html.includes("Moonlight"));
+  assert.ok(!html.includes(">Phoebeats<"));
   assert.ok(!html.includes("Home"));
 });
 

@@ -20,6 +20,7 @@ import { formatTime, loadLS, saveLS } from "../../utils";
 import { usePlaybackProgress } from "../../hooks/playbackProgress";
 
 type Props = {
+  nickname?: string;
   currentTrack: Track | null;
   getTrackCover: (track: Track | null) => string;
   isPlaying: boolean;
@@ -126,7 +127,8 @@ export function CompactPlayer(props: Props) {
           <ListMusic size={19} />
         </button>
         <span
-          title="Drag to move player"
+          className="pb-mini-nickname"
+          title={`${p.nickname || 'Phoebeats'} · Drag to move player`}
           style={{ cursor: "grab", touchAction: "none" }}
           onPointerDown={(e) => {
             const startX = e.clientX,
@@ -151,7 +153,7 @@ export function CompactPlayer(props: Props) {
             target.addEventListener("pointercancel", stop);
           }}
         >
-          Phoebeats
+          {p.nickname || "Phoebeats"}
         </span>
         <button
           className="pb-mini-toggle"

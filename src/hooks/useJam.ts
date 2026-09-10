@@ -4,6 +4,7 @@ import { Track, RepeatMode } from '../types';
 import { loadLS, saveLS } from '../utils';
 import { connectJamBridge, JamAction } from '../services/jamBridge';
 import { JamMode, makeJamInvite, parseJamInvite } from '../services/jamInvite';
+import { saveNickname } from '../services/nickname';
 
 export type SharedSong = Track & { jamId: string; fileKey?: string; ext?: string; owner: string; sharedBy: string };
 export type JamRoom = { code: string; host: string; members: { id: string; name: string }[]; queue: SharedSong[]; current: SharedSong | null; shared: SharedSong[]; playing: boolean; position: number; shuffle: boolean; repeat: RepeatMode; hostOnly: boolean; revision: number; generation: number; waiting: boolean };
@@ -133,7 +134,7 @@ export function useJam(player: Player, toast: (message: string) => void) {
         }
         if (active.current !== s) return;
         const next = await request<JamRoom>(s, '/command', { ...action, tracks: action.tracks ? tracks : undefined, generation: endedGeneration });
-        if (action.action === 'nickname' && action.name) saveLS('pb_jamName', action.name.trim());
+        if (action.action === 'nickname' && action.name) saveNickname(action.name);
         await apply(next, s);
       } catch (error) {
         if (action.action === 'ended') lastEnded.current = -1;
@@ -147,13 +148,14 @@ export function useJam(player: Player, toast: (message: string) => void) {
       personal.current = { queue: [...refs.current.player.getQueue()], ...refs.current.player.getPreferences() };
       active.current = s; uploads.current.clear(); generation.current = -1; lastEnded.current = -1; latest.current = null;
       setSession(s); connectJamBridge(command); await apply(result.room, s);
-      saveLS('pb_jamName', name.trim());
+      saveNickname(name);
   }
   async function join(server: string, name: string, code?: string, mode?: JamMode) {
     if (active.current || connecting.current) return;
     connecting.current = true;
     setBusy(true); setStatus('Connecting…');
     try {
+      name = saveNickname(name);
       const result = await invoke<Connection>('jam_request', { server, path: code ? `rooms/${code.trim().toUpperCase()}/join` : 'rooms', token: null, body: { name } });
       await attach(result,server,name,mode);
     } catch (error) { setStatus(String(error)); refs.current.toast(String(error)); }
@@ -165,6 +167,7 @@ export function useJam(player: Player, toast: (message: string) => void) {
     setStatus(mode === 'internet' ? 'Preparing Internet Jam… First use downloads the connection helper.' : 'Starting Local Jam…');
     let result: Connection | undefined;
     try {
+      name = saveNickname(name);
       result = await invoke<Connection>('jam_host_start', { mode, name: name.trim() });
       await attach(result,result.server!,name,mode);
     } catch (error) {

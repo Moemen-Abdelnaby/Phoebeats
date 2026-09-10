@@ -104,6 +104,7 @@ test('Jam hook saves shared audio once, archives songs, and restores personal st
   }, useRef: current => ({ current }), useEffect() {} };
   const { useJam } = load('src/hooks/useJam.ts', { react, '@tauri-apps/api/core': { invoke: native }, '../services/jamBridge': bridge,
     '../services/jamInvite': load('src/services/jamInvite.ts', {}),
+    '../services/nickname': {saveNickname: name => { storage.set('pb_jamName',name.trim()); return name.trim(); }},
     '../utils': { loadLS: (_, fallback) => fallback, saveLS: (key, value) => storage.set(key, value) } });
   const personalQueue = [song]; const state = { queue: personalQueue, shuffle: true, repeat: 'all', playing: false };
   const jam = useJam({ play: async track => { state.track = track; }, setPlaying: v => { state.playing = v; }, setShuffle: v => { state.shuffle = v; }, setRepeat: v => { state.repeat = v; }, setQueue: v => { state.queue = v; }, getQueue: () => state.queue, getPreferences: () => ({ shuffle: state.shuffle, repeat: state.repeat }) }, message => errors.push(message));
