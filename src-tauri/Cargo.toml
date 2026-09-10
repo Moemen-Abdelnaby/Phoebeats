@@ -1,6 +1,6 @@
 [package]
 name = "phoebeats"
-version = "0.1.8"
+version = "0.1.9"
 description = "Ad-free desktop music streaming powered by YouTube. Stream millions of songs without subscriptions, bloat, or interruptions."
 authors = ["rry0ku"]
 edition = "2021"
