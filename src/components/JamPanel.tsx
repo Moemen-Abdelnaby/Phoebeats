@@ -8,8 +8,8 @@ import { saveNickname } from '../services/nickname';
 import { JamMode } from '../services/jamInvite';
 import './jam.css';
 
-type Props = { jam: ReturnType<typeof useJam>; playlists: Playlist[]; setPlaylists: (update: (prev: Playlist[]) => Playlist[]) => void; toast: (message: string) => void; downloadOnline: (track: Track) => Promise<void>; onlineProgress: Record<string, number> };
-export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, onlineProgress }: Props) {
+type Props = { showLauncher?: boolean; jam: ReturnType<typeof useJam>; playlists: Playlist[]; setPlaylists: (update: (prev: Playlist[]) => Playlist[]) => void; toast: (message: string) => void; downloadOnline: (track: Track) => Promise<void>; onlineProgress: Record<string, number> };
+export function JamPanel({ showLauncher = true, jam, playlists, setPlaylists, toast, downloadOnline, onlineProgress }: Props) {
   const [open, setOpen] = useState(false);
   const nickname = useNickname();
   const [name, setName] = useState(nickname);
@@ -53,7 +53,7 @@ export function JamPanel({ jam, playlists, setPlaylists, toast, downloadOnline, 
     }) : <p className="jam-empty">Songs you share will appear here. Play a song or playlist anywhere in the app while connected.</p>;
   }
   return <>
-    <button className={`jam-launch ${jam.room ? 'is-live' : ''}`} onClick={() => setOpen(true)}><Radio size={16} /> {jam.room ? 'In a Jam' : 'Start / Join Jam'}</button>
+    {showLauncher && <button className={`jam-launch ${jam.room ? 'is-live' : ''}`} onClick={() => setOpen(true)}><Radio size={16} /> {jam.room ? 'In a Jam' : 'Start / Join Jam'}</button>}
     {open && createPortal(<div className="jam-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <section className="jam-panel" role="dialog" aria-modal="true" aria-label="Jam" onKeyDown={e => {
         if (e.key === 'Escape') setOpen(false);

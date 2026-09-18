@@ -49,6 +49,7 @@ import { usePlaylists } from "./hooks/usePlaylists";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
 import { useJam } from "./hooks/useJam";
 import { useNickname } from "./hooks/useNickname";
+import { ThemedSelect } from "./components/ThemedSelect";
 import { JamPanel } from "./components/JamPanel";
 import { useScrobbler } from "./hooks/useScrobbler";
 
@@ -2069,26 +2070,8 @@ export function App() {
             >
               <ListMusic size={15} aria-hidden="true" /> All playlists
             </button>
-            <select
-              aria-label="Choose playlist"
-              value={activeNav === "playlists" ? openPlaylistId || "" : ""}
-              onChange={(e) => {
-                setOpenPlaylistId(e.target.value || null);
-                setActiveNav("playlists");
-              }}
-            >
-              <option value="">Choose a playlist</option>
-              {playlists.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
             <button onClick={() => setActiveNav("downloads")}>
               <FolderOpen size={15} aria-hidden="true" /> Songs folder
-            </button>
-            <button onClick={handleImportPlaylistM3u}>
-              <FileInput size={15} aria-hidden="true" /> Import M3U
             </button>
             <button
               aria-label="Close panel"
@@ -2100,19 +2083,21 @@ export function App() {
           </div>
           {activeNav === "settings" && (
             <div className="pb-settings-close">
-              <select
-                aria-label="More views"
+              <ThemedSelect
+                ariaLabel="More views"
                 value="settings"
-                onChange={(e) => {
-                  if (e.target.value === "queue") setIsQueueOpen((v) => !v);
-                  else setActiveNav(e.target.value as NavView);
+                minWidth="180px"
+                options={[
+                  { value: "settings", label: "Settings" },
+                  { value: "stats", label: "Statistics" },
+                  { value: "history", label: "Listening history" },
+                  { value: "queue", label: "Toggle queue" },
+                ]}
+                onChange={(value) => {
+                  if (value === "queue") setIsQueueOpen((v) => !v);
+                  else setActiveNav(value as NavView);
                 }}
-              >
-                <option value="settings">Settings</option>
-                <option value="stats">Statistics</option>
-                <option value="history">Listening history</option>
-                <option value="queue">Toggle queue</option>
-              </select>
+              />
               <button
                 aria-label="Close settings"
                 title="Close settings"
@@ -2133,7 +2118,7 @@ export function App() {
               }}
             />
           </div>
-          <JamPanel jam={jam} playlists={playlists} setPlaylists={setPlaylists} toast={showToast} downloadOnline={handleDownload} onlineProgress={downloadingTracks} />
+          <JamPanel showLauncher={activeNav !== "settings"} jam={jam} playlists={playlists} setPlaylists={setPlaylists} toast={showToast} downloadOnline={handleDownload} onlineProgress={downloadingTracks} />
           <TopBar
             activeNav={activeNav}
             setActiveNav={setActiveNav}
@@ -2224,7 +2209,7 @@ export function App() {
               setIsPlaylistModalOpen={setIsPlaylistModalOpen}
               setShowCsvImportModal={setShowCsvImportModal}
               setShowYtImportModal={setShowYtImportModal}
-              handleImportPlaylistM3u={handleImportPlaylistM3u}
+              panelOpen={panelOpen}
               setPlaylistDeleteModal={setPlaylistDeleteModal}
               setRenamingPlaylist={setRenamingPlaylist}
               setRenameVal={setRenameVal}
@@ -2612,6 +2597,15 @@ export function App() {
                 <X size={11} />
               </button>
             </div>
+            <button
+              className="pb-create-import"
+              onClick={() => {
+                setIsPlaylistModalOpen(false);
+                void handleImportPlaylistM3u();
+              }}
+            >
+              <FileInput size={13} aria-hidden="true" /> Import M3U
+            </button>
             <div
               style={{
                 display: "flex",

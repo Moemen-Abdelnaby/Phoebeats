@@ -2,7 +2,6 @@ import React, { useRef, useState, useMemo } from "react";
 import {
   Check,
   CheckCircle,
-  FileOutput,
   Heart,
   ImagePlus,
   LayoutGrid,
@@ -92,7 +91,7 @@ interface PlaylistsViewProps {
   setPlayHistory?: React.Dispatch<React.SetStateAction<Track[]>>;
   setShowCsvImportModal: (show: boolean) => void;
   setShowYtImportModal: (show: boolean) => void;
-  handleImportPlaylistM3u: () => void;
+  panelOpen: boolean;
   showToast: (msg: string) => void;
   addToQueue?: (tracks: Track | Track[]) => void;
   onArtistClick?: (artistName: string) => void;
@@ -155,7 +154,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
     setPlayHistory,
     setShowCsvImportModal,
     setShowYtImportModal,
-    handleImportPlaylistM3u,
+    panelOpen,
     showToast,
     addToQueue,
     onArtistClick,
@@ -854,6 +853,9 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                   ) : (
                     <VirtualTrackList
                       items={filteredTracks}
+                      scrollToIndex={filteredTracks.findIndex((t) => t.url === currentTrack?.url)}
+                      scrollResetKey={`${openPlaylist.id}:${panelOpen}`}
+                      scrollEnabled={panelOpen}
                       itemHeight={56}
                       keyExtractor={(t, i) => `${t.url}_${i}`}
                       renderItem={(t, i) => {
@@ -2376,16 +2378,6 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = React.memo(
                         />
                       </svg>
                       Import from YouTube
-                    </button>
-                    <button
-                      onClick={() => handleImportPlaylistM3u?.()}
-                      className="v-library-import-btn"
-                    >
-                      <FileOutput
-                        size={12}
-                        style={{ marginRight: "4px", color: "var(--v-fg3)" }}
-                      />
-                      Import M3U Playlist
                     </button>
                   </div>
                 </div>

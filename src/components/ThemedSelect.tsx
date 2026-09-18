@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
 type ThemedSelectProps = {
+  ariaLabel?: string;
   value: string;
   options: { label: string; value: string }[];
   onChange: (v: string) => void;
@@ -11,6 +12,7 @@ type ThemedSelectProps = {
 };
 
 export const ThemedSelect = ({
+  ariaLabel,
   value,
   options,
   onChange,
@@ -37,9 +39,30 @@ export const ThemedSelect = ({
   return (
     <div
       ref={containerRef}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setOpen(false);
+          containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        }
+        if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+          e.preventDefault();
+          const buttons = Array.from(containerRef.current?.querySelectorAll<HTMLButtonElement>(".pb-select-menu button") || []);
+          const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+          const next = index < 0 ? (e.key === "ArrowDown" ? 0 : buttons.length - 1)
+            : (index + (e.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+          buttons[next]?.focus();
+        }
+      }}
       style={{ position: "relative", display: "inline-block" }}
     >
       <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         style={{
           display: "flex",
@@ -133,15 +156,12 @@ export const ThemedSelect = ({
             const isSelected = value === opt.value;
             return (
               <button
+                type="button"
                 key={opt.value}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
                 onClick={() => {
                   onChange(opt.value);
                   setOpen(false);
+                  containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
                 }}
                 style={{
                   display: "flex",

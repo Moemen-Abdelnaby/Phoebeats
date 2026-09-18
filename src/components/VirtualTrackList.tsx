@@ -6,6 +6,9 @@ interface VirtualTrackListProps<T> {
   items: T[];
   itemHeight?: number;
   overscan?: number;
+  scrollToIndex?: number;
+  scrollResetKey?: string;
+  scrollEnabled?: boolean;
   className?: string;
   style?: React.CSSProperties;
   renderItem: (item: T, index: number) => React.ReactNode;
@@ -13,24 +16,27 @@ interface VirtualTrackListProps<T> {
 }
 
 function getOffsetRelativeToScrollParent(el: HTMLElement, parent: HTMLElement | null): number {
-  let top = 0;
-  let curr: HTMLElement | null = el;
-  while (curr && curr !== parent && curr !== document.body) {
-    top += curr.offsetTop;
-    curr = curr.offsetParent as HTMLElement | null;
+  const zoom = getZoomFactor();
+  if (parent) {
+    return (el.getBoundingClientRect().top - parent.getBoundingClientRect().top) / zoom
+      + parent.scrollTop - parent.clientTop;
   }
-  return top;
+  return (el.getBoundingClientRect().top + window.scrollY) / zoom;
 }
 
 export function VirtualTrackList<T>({
   items,
   itemHeight = 56,
   overscan = 8,
+  scrollToIndex = -1,
+  scrollResetKey,
+  scrollEnabled = true,
   className,
   style,
   renderItem,
   keyExtractor,
 }: VirtualTrackListProps<T>) {
+  const lastScrollReset = useRef<string | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = useState({ scrollTop: 0, viewportHeight: 800 });
 
@@ -71,6 +77,15 @@ export function VirtualTrackList<T>({
       });
     };
 
+    if (scrollEnabled && scrollResetKey !== undefined && lastScrollReset.current !== scrollResetKey) {
+      lastScrollReset.current = scrollResetKey;
+      if (scrollParent && scrollToIndex >= 0 && scrollToIndex < items.length) {
+        const listTop = getOffsetRelativeToScrollParent(el, scrollParent);
+        scrollParent.scrollTop = Math.max(0, listTop + scrollToIndex * itemHeight
+          - (scrollParent.clientHeight - itemHeight) / 2);
+      }
+    }
+    if (!scrollEnabled) lastScrollReset.current = undefined;
     updateScroll();
 
     if (scrollParent) {
@@ -89,7 +104,7 @@ export function VirtualTrackList<T>({
       }
       window.removeEventListener('resize', onScroll);
     };
-  }, [items]);
+  }, [items, itemHeight, scrollResetKey, scrollEnabled, scrollToIndex]);
 
   const totalHeight = items.length * itemHeight;
   const startIndex = Math.max(0, Math.floor(scrollState.scrollTop / itemHeight) - overscan);
